@@ -149,13 +149,13 @@ int _tmain(int argc, _TCHAR* argv[])
 		TEST( cini.getcount( "array section", "key1[]" ) == 4 );
 
 		TEST( cini.geti( "array section", "key1[]", -999 ) == -999 );
-		TEST( strcmp( cini.gets( "array section", "key1[]", "ERROR" ), "1,2,3" ) == 0 );
+		TEST( strcmp( cini.gets( "array section", "key1[]", "ERROR" ), "1,2,3," ) == 0 );
 
 		TEST( cini.getai( "array section", "key1[]", 0, -999 ) == 1 );
 		TEST( cini.getai( "array section", "key1[]", 1, -999 ) == 2 );
 		TEST( cini.getai( "array section", "key1[]", 2, -999 ) == 3 );
 		TEST( cini.getai( "array section", "key1[]", 3, -999 ) == -999 );
-		TEST( strcmp( cini.getas( "array section", "key1", 3, "ERROR" ), "" ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key1[]", 3, "ERROR" ), "" ) == 0 );
 		TEST( cini.getai( "array section", "key1[]", 4, -999 ) == -999 );
 
 		TEST( cini.getcount( "array section", "key10" ) == 1 );
@@ -183,12 +183,6 @@ int _tmain(int argc, _TCHAR* argv[])
 		TEST( strcmp( cini.gets( "array section", "key[]6", "ERROR" ), "1,2,3" ) == 0 );
 		TEST( cini.getai( "array section", "key[]6", 0, -999 ) == -999 );
 
-		TEST( cini.geti( "array section", "key2[]", -999 ) == -50 );
-		TEST( cini.geti( "array section", "key3[]", -999 ) == 50 );
-		TEST( cini.geti( "array section", "key4[]", -999 ) == 0xFF );
-		TEST( cini.geti( "array section", "key5[100]", -999 ) == 0xFF );
-		TEST( cini.geti( "array section", "key6", -999 ) == 0xFF );
-
 		TEST( cini.geti( "error", "int over", -999 ) == -999 );
 		TEST( cini.geti( "error", "float over", -999 ) == -999 );
 	}
@@ -205,10 +199,10 @@ int _tmain(int argc, _TCHAR* argv[])
 		TEST( cini_geti( hcini, "int section", "key1", -999 ) == 200 );
 		TEST( cini_getf( hcini, "float section", "key1", -999 ) == 12.34F );
 		TEST( strcmp( cini_gets( hcini, "string section", "key1", "ERROR" ), "TEXT" ) == 0 );
-		TEST( cini_getcount( hcini, "array section", "key1" ) == 3 );
-		TEST( cini_getai( hcini, "array section", "key1", 0, -999 ) == 1 );
-		TEST( cini_getaf( hcini, "array section", "key1", 1, -999 ) == 2.0F );
-		TEST( strcmp( cini_getas( hcini, "array section", "key1", 2, "ERROR" ), "3" ) == 0 );
+		TEST( cini_getcount( hcini, "array section", "key1[]" ) == 4 );
+		TEST( cini_getai( hcini, "array section", "key1[]", 0, -999 ) == 1 );
+		TEST( cini_getaf( hcini, "array section", "key1[]", 1, -999 ) == 2.0F );
+		TEST( strcmp( cini_getas( hcini, "array section", "key1[]", 2, "ERROR" ), "3" ) == 0 );
 		cini_free( hcini );
 	}
 

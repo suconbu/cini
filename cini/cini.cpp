@@ -7,14 +7,6 @@
 
 #define CINI_SAFEDELETE( p )	(((p) != nullptr) ? (delete (p), (p) = nullptr) : nullptr)
 
-#define CINI_INIT_VALUE( v ) \
-	do{ \
-		v.type = CiniBody::ValueType::Null; \
-		v.i = 0; \
-		v.f = 0.0F; \
-		v.s.clear(); \
-	}while(0)
-
 #define CINI_SECTION_OPEN			"["
 #define CINI_SECTION_CLOSE			"]"
 #define CINI_COMMENT_CHARS			";"
@@ -29,22 +21,18 @@
 
 #define CINI_TRACE( format, ... ) \
 	do { \
-		OutputDebugString( Util::MakeString( format " at %s:%d\n", __VA_ARGS__, __FILE__, __LINE__ ).c_str() ); \
+		OutputDebugString( Util::MakeString( format " at %s %s:%d\n", __VA_ARGS__, __FUNCTION__, __FILE__, __LINE__ ).c_str() ); \
 	} while( 0 )
-#define CINI_TRACE_ERROR( format, ... ) do { CINI_TRACE( "[ERROR]" format, __VA_ARGS__ ); DebugBreak();	} while( 0 )
+#define CINI_TRACE_ERROR( format, ... ) do { CINI_TRACE( "[ERROR]" format, __VA_ARGS__ ); } while( 0 )
 #define CINI_TRACE_DEBUG( format, ... ) do { CINI_TRACE( "[DEBUG]" format, __VA_ARGS__ ); } while( 0 )
 
-#if 1
-#define ASSERT( cond ) \
-		do { \
-			if( !(cond) ){ \
-				CINI_TRACE_ERROR( _T("ASSERT at [%s] in %s:%d"), __FUNCTION__, __FILE__, __LINE__ ); \
-				DebugBreak(); \
-			} \
-		} while( 0 )
-#else
-#define ASSERT( cond )
-#endif
+#define CINI_ASSERT( cond ) \
+	do { \
+		if( !(cond) ){ \
+			CINI_TRACE_ERROR( "ASSERT!!!" ); \
+			DebugBreak(); \
+		} \
+	} while( 0 )
 
 //----------------------------------------------------------
 // Utility methods
@@ -119,7 +107,6 @@ public:
 
 	enum ValueType
 	{
-		Null,
 		Int,
 		Float,
 		String,
@@ -131,11 +118,17 @@ public:
 		int i;
 		float f;
 		std::string s;
+
+		bool IsNumeric()
+		{
+			return type == ValueType::Int || type == ValueType::Float;
+		}
 	};
 
 	static CiniBody* CreateFromFile( const char* path );
 
 	int GetValueCount( const char* section_name, const char* key_name );
+	Value* GetValue( const char* section_name, const char* key_name );
 	Value* GetValue( const char* section_name, const char* key_name, int index );
 
 	int GetErrorCount()
@@ -153,7 +146,7 @@ private:
 		std::string key_name;
 		Value value;
 		bool is_array;
-		std::vector<Value> values;
+		std::vector<Value> array_values;
 	};
 
 	struct Section
@@ -176,6 +169,8 @@ private:
 		Parser(){}
 
 		bool ParseLine( std::string& text );
+		bool ParseSection( std::string& text );
+		bool ParseEntry( std::string& text );
 		bool ParseValue( std::string& text, Value& value );
 		void PushError( const char* message )
 		{
@@ -230,8 +225,8 @@ int	Cini::geti( const char* section, const char* key, int idefault )
 	int i = idefault;
 	if( body_ != nullptr )
 	{
-		CiniBody::Value* value = body_->GetValue( section, key, 0 );
-		if( value != nullptr )
+		CiniBody::Value* value = body_->GetValue( section, key );
+		if( value != nullptr && value->IsNumeric() )
 		{
 			i = value->i;
 		}
@@ -244,8 +239,8 @@ float Cini::getf( const char* section, const char* key, float fdefault )
 	float f = fdefault;
 	if( body_ != nullptr )
 	{
-		CiniBody::Value* value = body_->GetValue( section, key, 0 );
-		if( value != nullptr )
+		CiniBody::Value* value = body_->GetValue( section, key );
+		if( value != nullptr && value->IsNumeric() )
 		{
 			f = value->f;
 		}
@@ -258,7 +253,7 @@ const char*	Cini::gets( const char* section, const char* key, const char* sdefau
 	const char* s = sdefault;
 	if( body_ != nullptr )
 	{
-		CiniBody::Value* value = body_->GetValue( section, key, 0 );
+		CiniBody::Value* value = body_->GetValue( section, key );
 		if( value != nullptr )
 		{
 			s = value->s.c_str();
@@ -273,7 +268,7 @@ int Cini::getai( const char* section, const char* key, int index, int idefault )
 	if( body_ != nullptr )
 	{
 		CiniBody::Value* value = body_->GetValue( section, key, index );
-		if( value != nullptr )
+		if( value != nullptr && value->IsNumeric() )
 		{
 			i = value->i;
 		}
@@ -287,7 +282,7 @@ float Cini::getaf( const char* section, const char* key, int index, float fdefau
 	if( body_ != nullptr )
 	{
 		CiniBody::Value* value = body_->GetValue( section, key, index );
-		if( value != nullptr )
+		if( value != nullptr && value->IsNumeric() )
 		{
 			f = value->f;
 		}
@@ -375,7 +370,7 @@ CiniBody* CiniBody::CreateFromFile( const char* path )
 		bool result = Parser::ParseFile( path, body->sections_, body->errors_ );
 		if( !result )
 		{
-			CINI_TRACE_DEBUG( "" );
+			CINI_TRACE_ERROR( "" );
 			CINI_SAFEDELETE( body );
 		}
 	}
@@ -388,9 +383,20 @@ int CiniBody::GetValueCount( const char* section_name, const char* key_name )
 	Entry* entry = FindEntry( section_name, key_name );
 	if( entry != nullptr )
 	{
-		count = entry->values.size();
+		count = entry->is_array ? entry->array_values.size() : 1;
 	}
 	return count;
+}
+
+CiniBody::Value* CiniBody::GetValue( const char* section_name, const char* key_name )
+{
+	Value* value = nullptr;
+	Entry* entry = FindEntry( section_name, key_name );
+	if( entry != nullptr )
+	{
+		value = &entry->value;
+	}
+	return value;
 }
 
 CiniBody::Value* CiniBody::GetValue( const char* section_name, const char* key_name, int index )
@@ -399,9 +405,9 @@ CiniBody::Value* CiniBody::GetValue( const char* section_name, const char* key_n
 	if( index >= 0 )
 	{
 		Entry* entry = FindEntry( section_name, key_name );
-		if( entry != nullptr && index < static_cast<int>(entry->values.size()) )
+		if( entry != nullptr && entry->is_array && index < static_cast<int>(entry->array_values.size()) )
 		{
-			value = &entry->values[index];
+			value = &entry->array_values[index];
 		}
 	}
 	return value;
@@ -433,105 +439,140 @@ bool CiniBody::Parser::ParseFile( const char* path, std::map<std::string, Sectio
 	}
 	else
 	{
-		CINI_TRACE_DEBUG( "" );
+		CINI_TRACE_ERROR( "" );
 	}
 	return result;
 }
 
-bool CiniBody::Parser::ParseLine( std::string& line )
+bool CiniBody::Parser::ParseLine( std::string& text )
 {
-	Entry* current_entry = nullptr;
-	std::string token;
+	CINI_ASSERT( sections_ != nullptr );
+	CINI_ASSERT( errors_ != nullptr );
+	CINI_ASSERT( current_section_ != nullptr );
 
-	ASSERT( sections_ != nullptr );
-	ASSERT( errors_ != nullptr );
-	ASSERT( current_section_ != nullptr );
-
-	line = Util::Trim( line );
-	if( line.length() == 0 )
+	std::string& t = Util::Trim( text );
+	if( t.length() == 0 )
 	{
 		// Blank line
 		return true;
 	}
 
-	if( Util::StartWith( line, CINI_COMMENT_CHARS ) )
+	if( Util::StartWith( t, CINI_COMMENT_CHARS ) )
 	{
 		// Comment line
 		return true;
 	}
 
-	if( Util::StartWith( line, CINI_SECTION_OPEN ) )
+	if( Util::StartWith( t, CINI_SECTION_OPEN ) )
 	{
-		// Section
-		std::string::size_type close_pos = line.find_first_of( CINI_SECTION_CLOSE, 1 );
-		if( close_pos != std::string::npos )
-		{
-			std::string section_name( Util::Trim( line.substr( 1, close_pos - 1 ) ) );
-			if( section_name.length() > 0 )
-			{
-				// Considering that already exist same section in the sections_.
-				current_section_ = &(*sections_)[section_name];
-				current_section_->name = section_name;
-			}
-			else
-			{
-				PushError( "Section name is empty, ignore the this line." );
-			}
-		}
-		else
-		{
-			PushError( "']' is missing, ignore the this line." );
-		}
+		return ParseSection( t );
 	}
 	else
 	{
-		// Key
-		std::string::size_type separator_pos = line.find_first_of( CINI_KEY_SEPARATOR );
-		if( separator_pos != std::string::npos )
+		return ParseEntry( t );
+	}
+}
+
+bool CiniBody::Parser::ParseSection( std::string& text )
+{
+	std::string::size_type close_pos = text.find_first_of( CINI_SECTION_CLOSE, 1 );
+	if( close_pos == std::string::npos )
+	{
+		PushError( "']' is missing, ignore the this line." );
+		return false;
+	}
+
+	std::string section_name( Util::Trim( text.substr( 1, close_pos - 1 ) ) );
+	if( section_name.length() == 0 )
+	{
+		PushError( "Section name is empty, ignore the this line." );
+		return false;
+	}
+
+	// Considering that already exist same section in the sections_.
+	current_section_ = &(*sections_)[section_name];
+	current_section_->name = section_name;
+
+	return true;
+}
+
+bool CiniBody::Parser::ParseEntry( std::string& text )
+{
+	// Key
+	std::string::size_type separator_pos = text.find_first_of( CINI_KEY_SEPARATOR );
+	if( separator_pos == std::string::npos )
+	{
+		PushError( "'=' is missing, ignore the this line." );
+		return false;
+	}
+
+	std::string key_name( Util::Trim( text.substr( 0, separator_pos ) ) );
+	if( key_name.length() == 0 )
+	{
+		PushError( "Key name is empty, ignore the this line." );
+		return false;
+	}
+	if( key_name.find_first_of( CINI_KEY_PROHIBIT_CHARS ) != std::string::npos )
+	{
+		PushError( "Key name includes prohibited character(" CINI_KEY_PROHIBIT_CHARS "), ignore the this line." );
+		return false;
+	}
+
+	if( current_section_->entries.count( key_name ) > 0 )
+	{
+		PushError( "Re-defined key, ignore the this line." );
+		return false;
+	}
+
+	Entry* current_entry = &current_section_->entries[key_name];
+	current_entry->key_name = key_name;
+	current_entry->is_array = Util::EndWith( key_name, CINI_ARRAY_SUFFIX );
+
+	Value value;
+	std::string::size_type start_pos = separator_pos + 1;
+	std::string::size_type end_pos = text.length();
+
+	std::string& token = text.substr( start_pos, end_pos - start_pos );
+	bool parse_result = ParseValue( token, value );
+	if( parse_result )
+	{
+		current_entry->value = value;
+	}
+	else
+	{
+		PushError( Util::MakeString( "Could not parsed '%s'.", token.c_str() ).c_str() );
+	}
+
+	if( current_entry->is_array )
+	{
+		do
 		{
-			std::string key_name( Util::Trim( line.substr( 0, separator_pos ) ) );
-			if( key_name.length() == 0 )
+			end_pos = text.find_first_of( CINI_ARRAY_SEPARATOR, start_pos );
+			if( end_pos == std::string::npos )
 			{
-				PushError( "Key name is empty, ignore the this line." );
+				end_pos = text.length();
 			}
-			else if( key_name.find_first_of( CINI_KEY_PROHIBIT_CHARS ) != std::string::npos )
+
+			std::string& token = text.substr( start_pos, end_pos - start_pos );
+			bool parse_result = ParseValue( token, value );
+			if( parse_result )
 			{
-				PushError( "Key name includes prohibited character(" CINI_KEY_PROHIBIT_CHARS "), ignore the this line." );
+				current_entry->array_values.push_back( value );
 			}
 			else
 			{
-				current_entry = &current_section_->entries[key_name];
-				current_entry->key_name = key_name;
-				current_entry->is_array = Util::EndWith( key_name, CINI_ARRAY_SUFFIX );
-
-				std::string::size_type start_pos = separator_pos + 1;
-				std::string::size_type end_pos = std::string::npos;
-				do
-				{
-					end_pos = line.find( CINI_ARRAY_SEPARATOR, start_pos );
-					if( end_pos == std::string::npos )
-					{
-						end_pos = line.length();
-					}
-					Value value;
-					bool parse_result = ParseValue( line.substr( start_pos, end_pos - start_pos ), value );
-					if( parse_result )
-					{
-						current_entry->values.push_back( value );
-					}
-					else
-					{
-						PushError( "Could not parsed the value." );
-						break;
-					}
-					start_pos = end_pos + 1;
-				} while( start_pos < (int)line.length() );
+				PushError( Util::MakeString( "Could not parsed '%s'.", token.c_str() ).c_str() );
 			}
-		}
-		else
-		{
-			PushError( "'=' is missing, ignore the this line." );
-		}
+
+			start_pos = end_pos + 1;
+			if( start_pos > text.length() )
+			{
+				break;
+			}
+
+			// Pick up the empty string on end of line.
+			// ex. key = 1,2,3, <<< number of elements is 4.
+		} while( start_pos <= text.length() );
 	}
 
 	return true;
@@ -539,44 +580,40 @@ bool CiniBody::Parser::ParseLine( std::string& line )
 
 bool CiniBody::Parser::ParseValue( std::string& token, Value& value )
 {
-	value.type = ValueType::Null;
+	token = Util::Trim( token );
+
+	value.type = ValueType::String;
 	value.i = 0;
 	value.f = 0.0F;
+	value.s = token;
 
-	token = Util::Trim( token );
-	if( token.length() > 0 )
+	char* endp = NULL;
+	std::string::size_type pos = token.find_first_of( '.' );
+	if( pos != std::string::npos )
 	{
-		value.type = ValueType::String;
-
-		char* endp = NULL;
-		std::string::size_type pos = token.find_first_of( '.' );
-		if( pos != std::string::npos )
+		// Real value
+		float f = strtof( token.c_str(), &endp );
+		if( *endp == '\0' )
 		{
-			// Real value
-			float f = strtof( token.c_str(), &endp );
-			if( *endp == '\0' )
-			{
-				value.type = ValueType::Float;
-				value.f = f;
-				value.i = (int)f;
-			}
+			value.type = ValueType::Float;
+			value.f = f;
+			value.i = static_cast<int>(f);
 		}
-		else if( token.find_first_of( "+-#0123456789" ) == 0 )
+	}
+	else if( token.find_first_of( "+-#0123456789" ) == 0 )
+	{
+		// Integer value
+		int i = strtol( Util::ReplaceString( token, "#", "0x" ).c_str(), &endp, 0 );
+		if( *endp == '\0' )
 		{
-			// Integer value
-			int i = strtol( Util::ReplaceString( token, "#", "0x" ).c_str(), &endp, 0 );
-			if( *endp == '\0' )
-			{
-				value.type = ValueType::Int;
-				value.i = i;
-				value.f = (float)i;
-			}
+			value.type = ValueType::Int;
+			value.i = i;
+			value.f = static_cast<float>(i);
 		}
-		else
-		{
-			;
-		}
-		value.s = token;
+	}
+	else
+	{
+		;
 	}
 
 	return true;

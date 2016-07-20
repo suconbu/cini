@@ -16,6 +16,8 @@ public:
 	Cini( const char* path );
 	~Cini();
 
+	bool isfailed();
+
 	int         geti( const char* section, const char* key, int idefault = 0 );
 	float       getf( const char* section, const char* key, float fdefault = 0.0F );
 	const char* gets( const char* section, const char* key, const char* sdefault = "" );

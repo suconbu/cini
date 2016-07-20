@@ -205,28 +205,36 @@ Cini::~Cini()
 	CINI_SAFEDELETE( body_ );
 }
 
+bool Cini::isfailed()
+{
+	return body_ == nullptr;
+}
+
 int Cini::getcount( const char* section, const char* key )
 {
-	return body_->GetValueCount( section, key );
+	return (body_ != nullptr) ? body_->GetValueCount( section, key ) : 0;
 }
 
 int Cini::geterrorcount()
 {
-	return body_->GetErrorCount();
+	return (body_ != nullptr) ? body_->GetErrorCount() : 0;
 }
 
 const char* Cini::geterror( int index )
 {
-	return body_->GetError( index );
+	return (body_ != nullptr) ? body_->GetError( index ) : nullptr;
 }
 
 int	Cini::geti( const char* section, const char* key, int idefault )
 {
 	int i = idefault;
-	CiniBody::Value* value = body_->GetValue( section, key, 0 );
-	if( value != nullptr )
+	if( body_ != nullptr )
 	{
-		i = value->i;
+		CiniBody::Value* value = body_->GetValue( section, key, 0 );
+		if( value != nullptr )
+		{
+			i = value->i;
+		}
 	}
 	return i;
 }
@@ -234,10 +242,13 @@ int	Cini::geti( const char* section, const char* key, int idefault )
 float Cini::getf( const char* section, const char* key, float fdefault )
 {
 	float f = fdefault;
-	CiniBody::Value* value = body_->GetValue( section, key, 0 );
-	if( value != nullptr )
+	if( body_ != nullptr )
 	{
-		f = value->f;
+		CiniBody::Value* value = body_->GetValue( section, key, 0 );
+		if( value != nullptr )
+		{
+			f = value->f;
+		}
 	}
 	return f;
 }
@@ -245,10 +256,13 @@ float Cini::getf( const char* section, const char* key, float fdefault )
 const char*	Cini::gets( const char* section, const char* key, const char* sdefault )
 {
 	const char* s = sdefault;
-	CiniBody::Value* value = body_->GetValue( section, key, 0 );
-	if( value != nullptr )
+	if( body_ != nullptr )
 	{
-		s = value->s.c_str();
+		CiniBody::Value* value = body_->GetValue( section, key, 0 );
+		if( value != nullptr )
+		{
+			s = value->s.c_str();
+		}
 	}
 	return s;
 }
@@ -256,10 +270,13 @@ const char*	Cini::gets( const char* section, const char* key, const char* sdefau
 int Cini::getai( const char* section, const char* key, int index, int idefault )
 {
 	int i = idefault;
-	CiniBody::Value* value = body_->GetValue( section, key, index );
-	if( value != nullptr )
+	if( body_ != nullptr )
 	{
-		i = value->i;
+		CiniBody::Value* value = body_->GetValue( section, key, index );
+		if( value != nullptr )
+		{
+			i = value->i;
+		}
 	}
 	return i;
 }
@@ -267,11 +284,13 @@ int Cini::getai( const char* section, const char* key, int index, int idefault )
 float Cini::getaf( const char* section, const char* key, int index, float fdefault )
 {
 	float f = fdefault;
-	CiniBody::Value v;
-	CiniBody::Value* value = body_->GetValue( section, key, index );
-	if( value != nullptr )
+	if( body_ != nullptr )
 	{
-		f = value->f;
+		CiniBody::Value* value = body_->GetValue( section, key, index );
+		if( value != nullptr )
+		{
+			f = value->f;
+		}
 	}
 	return f;
 }
@@ -279,11 +298,13 @@ float Cini::getaf( const char* section, const char* key, int index, float fdefau
 const char*	Cini::getas( const char* section, const char* key, int index, const char* sdefault )
 {
 	const char* s = sdefault;
-	CiniBody::Value v;
-	CiniBody::Value* value = body_->GetValue( section, key, index );
-	if( value != nullptr )
+	if( body_ != nullptr )
 	{
-		s = value->s.c_str();
+		CiniBody::Value* value = body_->GetValue( section, key, index );
+		if( value != nullptr )
+		{
+			s = value->s.c_str();
+		}
 	}
 	return s;
 }
@@ -348,19 +369,17 @@ CiniBody::CiniBody()
 
 CiniBody* CiniBody::CreateFromFile( const char* path )
 {
-	CiniBody* body_ = new CiniBody();
-	CINI_TRACE_DEBUG( "CreateFromFile" );
-	if( body_ != nullptr )
+	CiniBody* body = new CiniBody();
+	if( body != nullptr )
 	{
-		bool result = Parser::ParseFile( path, body_->sections_, body_->errors_ );
-		if( result )
+		bool result = Parser::ParseFile( path, body->sections_, body->errors_ );
+		if( !result )
 		{
-			return body_;
+			CINI_TRACE_DEBUG( "" );
+			CINI_SAFEDELETE( body );
 		}
-		CINI_SAFEDELETE( body_ );
 	}
-	CINI_TRACE_ERROR( "" );
-	return nullptr;
+	return body;
 }
 
 int CiniBody::GetValueCount( const char* section_name, const char* key_name )
@@ -414,7 +433,7 @@ bool CiniBody::Parser::ParseFile( const char* path, std::map<std::string, Sectio
 	}
 	else
 	{
-		CINI_TRACE_ERROR( "" );
+		CINI_TRACE_DEBUG( "" );
 	}
 	return result;
 }

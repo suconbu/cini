@@ -25,7 +25,7 @@ void print_test_result( int cond, const char* cond_text, int line )
 void print_test_summary()
 {
 	fprintf_s( stdout, "----------------------------------------\n");
-	fprintf_s( stdout, "count\t(^-^)\t%%%%\n" );
+	fprintf_s( stdout, "count\t(^-^)\t%%\n" );
 	fprintf_s( stdout, "%d\t%d\t%.01f\n",
 		G_TEST_COUNT,
 		G_OK_COUNT,
@@ -191,6 +191,25 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		TEST( cini.geti( "error", "int over", -999 ) == -999 );
 		TEST( cini.geti( "error", "float over", -999 ) == -999 );
+	}
+	{
+		Cini cini( path );
+		TEST( !cini.isfailed() );
+	}
+	{
+		Cini cini( "alkjgbak4nubiato" );
+		TEST( cini.isfailed() );
+	}
+	{
+		HCINI hcini = cini_create( path );
+		TEST( cini_geti( hcini, "int section", "key1", -999 ) == 200 );
+		TEST( cini_getf( hcini, "float section", "key1", -999 ) == 12.34F );
+		TEST( strcmp( cini_gets( hcini, "string section", "key1", "ERROR" ), "TEXT" ) == 0 );
+		TEST( cini_getcount( hcini, "array section", "key1" ) == 3 );
+		TEST( cini_getai( hcini, "array section", "key1", 0, -999 ) == 1 );
+		TEST( cini_getaf( hcini, "array section", "key1", 1, -999 ) == 2.0F );
+		TEST( strcmp( cini_getas( hcini, "array section", "key1", 2, "ERROR" ), "3" ) == 0 );
+		cini_free( hcini );
 	}
 
 	fprintf_s( stdout, "\n" );

@@ -10,10 +10,12 @@
 #define CINI_SECTION_OPEN			"["
 #define CINI_SECTION_CLOSE			"]"
 #define CINI_COMMENT_CHARS			";"
-#define CINI_KEY_SEPARATOR			"="
 #define CINI_KEY_PROHIBIT_CHARS		"\""
+#define CINI_ASSIGNMENT_OP			"="
 #define CINI_ARRAY_SUFFIX			"[]"
-#define CINI_ARRAY_SEPARATOR		","
+#define CINI_ARRAY_SEPARATOR		','
+#define CINI_STRING_QUOTE1			'"'
+#define CINI_STRING_QUOTE2			'\''
 
 //----------------------------------------------------------
 // For debug
@@ -499,7 +501,7 @@ bool CiniBody::Parser::ParseSection( std::string& text )
 bool CiniBody::Parser::ParseEntry( std::string& text )
 {
 	// Key
-	std::string::size_type separator_pos = text.find_first_of( CINI_KEY_SEPARATOR );
+	std::string::size_type separator_pos = text.find( CINI_ASSIGNMENT_OP );
 	if( separator_pos == std::string::npos )
 	{
 		PushError( "'=' is missing, ignore the this line." );
@@ -547,10 +549,70 @@ bool CiniBody::Parser::ParseEntry( std::string& text )
 	{
 		do
 		{
-			end_pos = text.find_first_of( CINI_ARRAY_SEPARATOR, start_pos );
-			if( end_pos == std::string::npos )
+			TCHAR openQuote = '\0';
+			bool inQuote = false;
+			std::string::size_type pos = start_pos;
+			std::string::size_type firstSeparatorPos = std::string::npos;
+
+			end_pos = text.length();
+
+			while( pos < text.length() )
 			{
-				end_pos = text.length();
+				TCHAR c = text[pos];
+				if( _istspace( c ) == 0 )
+				{
+					if( c == CINI_STRING_QUOTE1 || c == CINI_STRING_QUOTE2 )
+					{
+						openQuote = text[pos];
+						inQuote = true;
+					}
+					pos++;
+					break;
+				}
+				pos++;
+			}
+			while( pos < text.length() )
+			{
+				TCHAR c = text[pos];
+				if( _istspace( c ) != 0 )
+				{
+					;
+				}
+				else if( text[pos] == CINI_ARRAY_SEPARATOR )
+				{
+					if( !inQuote )
+					{
+						end_pos = pos;
+						break;
+					}
+					else
+					{
+						if( firstSeparatorPos == std::string::npos )
+						{
+							firstSeparatorPos = pos;
+						}
+					}
+				}
+				else
+				{
+					if( openQuote != '\0' )
+					{
+						if( c == openQuote )
+						{
+							inQuote = false;
+						}
+						else
+						{
+							inQuote = true;
+						}
+					}
+				}
+				pos++;
+			}
+
+			if( inQuote && firstSeparatorPos != std::string::npos )
+			{
+				end_pos = firstSeparatorPos;
 			}
 
 			std::string& token = text.substr( start_pos, end_pos - start_pos );
@@ -561,14 +623,10 @@ bool CiniBody::Parser::ParseEntry( std::string& text )
 			}
 			else
 			{
-				PushError( Util::MakeString( "Could not parsed '%s'.", token.c_str() ).c_str() );
+				PushError( Util::MakeString( "Could not parsed '%s'.", text.c_str() ).c_str() );
 			}
 
 			start_pos = end_pos + 1;
-			if( start_pos > text.length() )
-			{
-				break;
-			}
 
 			// Pick up the empty string on end of line.
 			// ex. key = 1,2,3, <<< number of elements is 4.
@@ -580,40 +638,49 @@ bool CiniBody::Parser::ParseEntry( std::string& text )
 
 bool CiniBody::Parser::ParseValue( std::string& token, Value& value )
 {
-	token = Util::Trim( token );
+	std::string s = Util::Trim( token );
 
 	value.type = ValueType::String;
 	value.i = 0;
 	value.f = 0.0F;
-	value.s = token;
+	value.s = s;
 
-	char* endp = NULL;
-	std::string::size_type pos = token.find_first_of( '.' );
-	if( pos != std::string::npos )
+	if( s.find_first_of( "+-#0123456789" ) == 0 )
 	{
-		// Real value
-		float f = strtof( token.c_str(), &endp );
-		if( *endp == '\0' )
-		{
-			value.type = ValueType::Float;
-			value.f = f;
-			value.i = static_cast<int>(f);
-		}
-	}
-	else if( token.find_first_of( "+-#0123456789" ) == 0 )
-	{
-		// Integer value
-		int i = strtol( Util::ReplaceString( token, "#", "0x" ).c_str(), &endp, 0 );
+		char* endp = NULL;
+
+		// Integer value?
+		int i = strtol( Util::ReplaceString( s, "#", "0x" ).c_str(), &endp, 0 );
 		if( *endp == '\0' )
 		{
 			value.type = ValueType::Int;
 			value.i = i;
 			value.f = static_cast<float>(i);
 		}
+		else
+		{
+			// Real value?
+			float f = strtof( s.c_str(), &endp );
+			if( *endp == '\0' )
+			{
+				value.type = ValueType::Float;
+				value.f = f;
+				value.i = static_cast<int>(f);
+			}
+		}
 	}
-	else
+
+	if( value.type == ValueType::String )
 	{
-		;
+		if( s.length() > 2 )
+		{
+			if( (s.front() == CINI_STRING_QUOTE1 && s.back() == CINI_STRING_QUOTE1) ||
+				(s.front() == CINI_STRING_QUOTE2 && s.back() == CINI_STRING_QUOTE2) )
+			{
+				s = s.substr( 1, s.length() - 2 );
+			}
+		}
+		value.s = s;
 	}
 
 	return true;

@@ -176,6 +176,13 @@ int _tmain(int argc, _TCHAR* argv[])
 		TEST( strcmp( cini.getas( "array section", "key20[]", 4, "ERROR" ), "E E\"E" ) == 0 );
 		TEST( strcmp( cini.getas( "array section", "key20[]", 5, "ERROR" ), "F" ) == 0 );
 
+		TEST( cini.getcount( "array section", "key21[]" ) == 5 );
+		TEST( strcmp( cini.getas( "array section", "key21[]", 0, "ERROR" ), "AA" ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key21[]", 1, "ERROR" ), "BB\" , \"B\"B\"B , B " ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key21[]", 2, "ERROR" ), "C, C C'C'" ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key21[]", 3, "ERROR" ), "\"D'" ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key21[]", 4, "ERROR" ), "F" ) == 0 );
+
 		TEST( cini.getcount( "array section", "key3[]" ) == 1 );
 		TEST( cini.geti( "array section", "key3[]", -999 ) == 1 );
 

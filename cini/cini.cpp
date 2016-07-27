@@ -173,6 +173,7 @@ private:
 		bool ParseLine( std::string& text );
 		bool ParseSection( std::string& text );
 		bool ParseEntry( std::string& text );
+		bool ParseArray( std::string& text, Entry& entry );
 		bool ParseValue( std::string& text, Value& value );
 		void PushError( const char* message )
 		{
@@ -530,10 +531,10 @@ bool CiniBody::Parser::ParseEntry( std::string& text )
 	current_entry->key_name = key_name;
 	current_entry->is_array = Util::EndWith( key_name, CINI_ARRAY_SUFFIX );
 
-	Value value;
 	std::string::size_type start_pos = separator_pos + 1;
 	std::string::size_type end_pos = text.length();
 
+	Value value;
 	std::string& token = text.substr( start_pos, end_pos - start_pos );
 	bool parse_result = ParseValue( token, value );
 	if( parse_result )
@@ -547,91 +548,100 @@ bool CiniBody::Parser::ParseEntry( std::string& text )
 
 	if( current_entry->is_array )
 	{
-		do
+		ParseArray( token, *current_entry );
+	}
+
+	return true;
+}
+
+bool CiniBody::Parser::ParseArray( std::string& text, Entry& entry )
+{
+	std::string::size_type start_pos = 0;
+	do
+	{
+		TCHAR openQuote = '\0';
+		bool inQuote = false;
+		std::string::size_type pos = start_pos;
+		std::string::size_type end_pos = text.length();
+		std::string::size_type firstSeparatorPos = std::string::npos;
+
+		while( pos < text.length() )
 		{
-			TCHAR openQuote = '\0';
-			bool inQuote = false;
-			std::string::size_type pos = start_pos;
-			std::string::size_type firstSeparatorPos = std::string::npos;
-
-			end_pos = text.length();
-
-			while( pos < text.length() )
+			TCHAR c = text[pos];
+			if( _istspace( c ) == 0 )
 			{
-				TCHAR c = text[pos];
-				if( _istspace( c ) == 0 )
+				if( c == CINI_STRING_QUOTE1 || c == CINI_STRING_QUOTE2 )
 				{
-					if( c == CINI_STRING_QUOTE1 || c == CINI_STRING_QUOTE2 )
-					{
-						openQuote = text[pos];
-						inQuote = true;
-					}
-					pos++;
-					break;
+					openQuote = text[pos];
+					inQuote = true;
 				}
 				pos++;
+				break;
 			}
-			while( pos < text.length() )
+			pos++;
+		}
+		while( pos < text.length() )
+		{
+			TCHAR c = text[pos];
+			if( _istspace( c ) != 0 )
 			{
-				TCHAR c = text[pos];
-				if( _istspace( c ) != 0 )
+				;
+			}
+			else if( text[pos] == CINI_ARRAY_SEPARATOR )
+			{
+				if( !inQuote )
 				{
-					;
-				}
-				else if( text[pos] == CINI_ARRAY_SEPARATOR )
-				{
-					if( !inQuote )
-					{
-						end_pos = pos;
-						break;
-					}
-					else
-					{
-						if( firstSeparatorPos == std::string::npos )
-						{
-							firstSeparatorPos = pos;
-						}
-					}
+					end_pos = pos;
+					break;
 				}
 				else
 				{
-					if( openQuote != '\0' )
+					if( firstSeparatorPos == std::string::npos )
 					{
-						if( c == openQuote )
-						{
-							inQuote = false;
-						}
-						else
-						{
-							inQuote = true;
-						}
+						// Save the separator position for if could not found the closing quote.
+						firstSeparatorPos = pos;
 					}
 				}
-				pos++;
-			}
-
-			if( inQuote && firstSeparatorPos != std::string::npos )
-			{
-				end_pos = firstSeparatorPos;
-			}
-
-			std::string& token = text.substr( start_pos, end_pos - start_pos );
-			bool parse_result = ParseValue( token, value );
-			if( parse_result )
-			{
-				current_entry->array_values.push_back( value );
 			}
 			else
 			{
-				PushError( Util::MakeString( "Could not parsed '%s'.", text.c_str() ).c_str() );
+				if( openQuote != '\0' )
+				{
+					if( c == openQuote )
+					{
+						inQuote = false;
+					}
+					else
+					{
+						inQuote = true;
+					}
+				}
 			}
+			pos++;
+		}
 
-			start_pos = end_pos + 1;
+		if( inQuote && firstSeparatorPos != std::string::npos )
+		{
+			end_pos = firstSeparatorPos;
+		}
 
-			// Pick up the empty string on end of line.
-			// ex. key = 1,2,3, <<< number of elements is 4.
-		} while( start_pos <= text.length() );
-	}
+		Value value;
+		std::string& token = text.substr( start_pos, end_pos - start_pos );
+		bool parse_result = ParseValue( token, value );
+		if( parse_result )
+		{
+			entry.array_values.push_back( value );
+		}
+		else
+		{
+			PushError( Util::MakeString( "Could not parsed '%s'.", text.c_str() ).c_str() );
+		}
+
+		start_pos = end_pos + 1;
+
+		// Pick up the empty string on end of line.
+		// ex. key = 1,2,3, <<< number of elements is 4.
+	} while( start_pos <= text.length() );
 
 	return true;
 }

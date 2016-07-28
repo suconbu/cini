@@ -9,12 +9,8 @@
 
 #include <stdio.h>
 #include <tchar.h>
-#include <stdarg.h>
-#include <vector>
-#include <map>
 #include <iostream>
-#include <string>
 #include <fstream>
-#include <windows.h>	// For debugging
+#include <windows.h>
 
 #include "cini.h"

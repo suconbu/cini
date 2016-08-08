@@ -29,29 +29,29 @@
 int G_TEST_COUNT = 0;
 int G_OK_COUNT = 0;
 
-void print_test_result( int cond, const char* cond_text, int line )
+void print_test_result( int cond, const char* cond_text, int /*line*/ )
 {
 	G_TEST_COUNT++;
 	if( cond )
 	{
-		fprintf_s( stdout, "%4d\t(^-^)\t[%s]\n", G_TEST_COUNT, cond_text );
+		fprintf( stdout, "%4d\t(^-^)\t[%s]\n", G_TEST_COUNT, cond_text );
 		G_OK_COUNT++;
 	}
 	else
 	{
-		fprintf_s( stdout, "%4d\t(x_x)\t[%s]\n", G_TEST_COUNT, cond_text );
+		fprintf( stdout, "%4d\t(x_x)\t[%s]\n", G_TEST_COUNT, cond_text );
 	}
 }
 
 void print_test_summary()
 {
-	fprintf_s( stdout, "----------------------------------------\n");
-	fprintf_s( stdout, "count\t(^-^)\t%%\n" );
-	fprintf_s( stdout, "%d\t%d\t%.01f\n",
+	fprintf( stdout, "----------------------------------------\n");
+	fprintf( stdout, "count\t(^-^)\t%%\n" );
+	fprintf( stdout, "%d\t%d\t%.01f\n",
 		G_TEST_COUNT,
 		G_OK_COUNT,
 		G_OK_COUNT * 100.F / G_TEST_COUNT );
-	fprintf_s( stdout, "----------------------------------------\n" );
+	fprintf( stdout, "----------------------------------------\n" );
 }
 
 void print_errors( Cini& cini )
@@ -59,7 +59,7 @@ void print_errors( Cini& cini )
 	int num_errors = cini.geterrorcount();
 	for( int i = 0; i < num_errors; i++ )
 	{
-		fprintf_s( stdout, "%4d\t%s\n", i + 1, cini.geterror( i ) );
+		fprintf( stdout, "%4d\t%s\n", i + 1, cini.geterror( i ) );
 	}
 }
 
@@ -87,10 +87,10 @@ int _tmain(int argc, _TCHAR* argv[])
 		path = argv[1];
 	}
 
-	fprintf_s( stdout, "test data\t%s\n", path);
-	fprintf_s( stdout, "\n" );
+	fprintf( stdout, "test data\t%s\n", path);
+	fprintf( stdout, "\n" );
 
-	fprintf_s( stdout, "#\tresult\ttest\tline\n" );
+	fprintf( stdout, "#\tresult\ttest\tline\n" );
 	{
 		Cini cini( path );
 		TEST( cini.geti( "", "key1", -999 ) == 100 );
@@ -242,21 +242,21 @@ int _tmain(int argc, _TCHAR* argv[])
 		cini_free( hcini );
 	}
 
-	fprintf_s( stdout, "\n" );
+	fprintf( stdout, "\n" );
 
 	{
-		fprintf_s( stdout, "ERRORS:\n" );
+		fprintf( stdout, "ERRORS:\n" );
 		Cini cini( path );
 		print_errors( cini );
 	}
 
-	fprintf_s( stdout, "\n" );
+	fprintf( stdout, "\n" );
 
 	print_test_summary();
 
 	append_test_result();
 
-	::_gettchar();
+	::getchar();
 
 	return 0;
 }

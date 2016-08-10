@@ -9,8 +9,10 @@
 
 #include <stdio.h>
 #include <tchar.h>
+#include <windows.h>
+#ifdef __cplusplus
 #include <iostream>
 #include <fstream>
-#include <windows.h>
+#endif //__cplusplus
 
 #include "cini.h"

@@ -343,7 +343,12 @@ const char*	Cini::getas( const char* section, const char* key, int index, const 
 
 HCINI cini_create( const char* path )
 {
-	return new Cini( path );
+	Cini* cini = new Cini( path );
+	if( cini != 0 && cini->isfailed() )
+	{
+		CINI_SAFEDELETE( cini );
+	}
+	return cini;
 }
 
 void cini_free( HCINI hcini )

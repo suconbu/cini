@@ -1,5 +1,5 @@
 //
-// main.cpp - Execute the test code for cini
+// test.h - Function prototypes for test
 // 
 // Copyright (C) 2016 suconbu.
 //
@@ -22,26 +22,26 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#include "stdafx.h"
-#include "test.h"
+#pragma once
 
-int _tmain(int argc, _TCHAR* argv[])
-{
-	const char* path = "test.ini";
-	if( argc > 1 )
-	{
-		path = argv[1];
-	}
+#ifndef _TEST_H_
+#define _TEST_H_
 
-	test_c( path );
-	test_cpp( path );
+#define TEST( cond )	print_test_result( (int)(cond), #cond, __LINE__ )
 
-	print_test_summary();
+#ifdef __cplusplus
+extern "C" {
+#endif //__cplusplus
 
-	append_test_result();
+void test_c( const char* path );
+void test_cpp( const char* path );
 
-	::getchar();
+void print_test_result( int cond, const char* cond_text, int line );
+void print_test_summary();
+void append_test_result();
 
-	return 0;
+#ifdef __cplusplus
 }
+#endif //__cplusplus
 
+#endif //_TEST_H_

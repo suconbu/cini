@@ -213,7 +213,6 @@ private:
 
 	std::map<std::string, Section> sections_;
 	std::vector<std::string> errors_;
-	const char** error_messages_;
 
 	CiniBody();
 	const Entry* FindEntry( const char* section_name, const char* key_name ) const;
@@ -716,7 +715,7 @@ bool CiniBody::Parser::ParseValue( std::string& token, Value& value )
 		else
 		{
 			// Real number?
-			float f = strtof( s.c_str(), &endp );
+			float f = static_cast<float>(strtod( s.c_str(), &endp ));
 			if( *endp == '\0' )
 			{
 				value.type = ValueType_Float;

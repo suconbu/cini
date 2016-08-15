@@ -33,16 +33,16 @@ void print_test_result( int cond, const char* cond_text, int line )
 	G_TEST_COUNT++;
 	if( cond )
 	{
-		fprintf( stdout, "%4d\t(^-^)\t[%s]\n", G_TEST_COUNT, cond_text );
+		TEST_PRINT( stdout, "%4d\t(^-^)\t[%s]\n", G_TEST_COUNT, cond_text );
 		G_OK_COUNT++;
 	}
 	else
 	{
-		fprintf( stdout, "%4d\t(x_x)\t[%s]\n", G_TEST_COUNT, cond_text );
+		TEST_PRINT( stdout, "%4d\t(x_x)\t[%s]\n", G_TEST_COUNT, cond_text );
 	}
 }
 
-void print_test_summary()
+void print_test_summary( long long int elapsed_nanosec )
 {
 	fprintf( stdout, "----------------------------------------\n" );
 	fprintf( stdout, "count\t(^-^)\t%%\n" );
@@ -50,6 +50,7 @@ void print_test_summary()
 		G_TEST_COUNT,
 		G_OK_COUNT,
 		G_OK_COUNT * 100.F / G_TEST_COUNT );
+	fprintf( stdout, "%d[usec]\n", static_cast<int>(elapsed_nanosec / 1000) );
 	fprintf( stdout, "----------------------------------------\n" );
 }
 
@@ -67,4 +68,19 @@ void append_test_result()
 			<< (G_OK_COUNT * 100 / G_TEST_COUNT) << "%" << "\t"
 			<< G_OK_COUNT << "/" << G_TEST_COUNT << std::endl;
 	}
+}
+
+long long int get_nanosec()
+{
+	static LARGE_INTEGER freq = { 0 };
+	static LARGE_INTEGER start = { 0 };
+	LARGE_INTEGER time;
+
+	if( freq.QuadPart == 0 )
+	{
+		::QueryPerformanceFrequency( &freq );
+		::QueryPerformanceCounter( &start );
+	}
+	::QueryPerformanceCounter( &time );
+	return static_cast<long long int>(static_cast<double>(time.QuadPart - start.QuadPart) / freq.QuadPart * 1000 * 1000 * 1000);
 }

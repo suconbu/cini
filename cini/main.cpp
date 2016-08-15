@@ -27,16 +27,16 @@
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+	_CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
+
 	const char* path = "test.ini";
-	if( argc > 1 )
-	{
-		path = argv[1];
-	}
+
+	long long int start = get_nanosec();
 
 	test_c( path );
 	test_cpp( path );
 
-	print_test_summary();
+	print_test_summary( get_nanosec() - start );
 
 	append_test_result();
 

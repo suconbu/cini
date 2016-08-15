@@ -27,14 +27,14 @@
 
 void test_c( const char* path )
 {
-	fprintf( stdout, "\n" );
-	fprintf( stdout, "---------- test_c ----------\n" );
-	fprintf( stdout, "\n" );
+	TEST_PRINT( stdout, "\n" );
+	TEST_PRINT( stdout, "---------- test_c ----------\n" );
+	TEST_PRINT( stdout, "\n" );
 
-	fprintf( stdout, "test data\t%s\n", path );
-	fprintf( stdout, "\n" );
+	TEST_PRINT( stdout, "test data\t%s\n", path );
+	TEST_PRINT( stdout, "\n" );
 
-	fprintf( stdout, "#\tresult\ttest\tline\n" );
+	TEST_PRINT( stdout, "#\tresult\ttest\tline\n" );
 	{
 		HCINI hcini = cini_create( path );
 		TEST( cini_geti( hcini, "", "key1", -999 ) == 100 );
@@ -182,15 +182,15 @@ void test_c( const char* path )
 		cini_free( hcini );
 	}
 
-	fprintf( stdout, "\n" );
+	TEST_PRINT( stdout, "\n" );
 
 	{
-		fprintf( stdout, "ERRORS:\n" );
+		TEST_PRINT( stdout, "ERRORS:\n" );
 		HCINI hcini = cini_create( path );
 		int num_errors = cini_geterrorcount( hcini );
 		for( int i = 0; i < num_errors; i++ )
 		{
-			fprintf( stdout, "%4d\t%s\n", i + 1, cini_geterror( hcini, i ) );
+			TEST_PRINT( stdout, "%4d\t%s\n", i + 1, cini_geterror( hcini, i ) );
 		}
 	}
 }

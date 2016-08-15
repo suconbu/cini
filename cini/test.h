@@ -27,7 +27,8 @@
 #ifndef _TEST_H_
 #define _TEST_H_
 
-#define TEST( cond )	print_test_result( (int)(cond), #cond, __LINE__ )
+#define TEST( cond )					print_test_result( (int)(cond), #cond, __LINE__ )
+#define TEST_PRINT( file, format, ... )	//fprintf( file, format, __VA_ARGS__ )
 
 #ifdef __cplusplus
 extern "C" {
@@ -37,8 +38,9 @@ void test_c( const char* path );
 void test_cpp( const char* path );
 
 void print_test_result( int cond, const char* cond_text, int line );
-void print_test_summary();
+void print_test_summary( long long int elapsed_nanosec );
 void append_test_result();
+long long int get_nanosec();
 
 #ifdef __cplusplus
 }

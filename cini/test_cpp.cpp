@@ -27,14 +27,14 @@
 
 void test_cpp( const char* path )
 {
-	fprintf( stdout, "\n" );
-	fprintf( stdout, "---------- test_cpp ----------\n" );
-	fprintf( stdout, "\n" );
+	TEST_PRINT( stdout, "\n" );
+	TEST_PRINT( stdout, "---------- test_cpp ----------\n" );
+	TEST_PRINT( stdout, "\n" );
 
-	fprintf( stdout, "test data\t%s\n", path );
-	fprintf( stdout, "\n" );
+	TEST_PRINT( stdout, "test data\t%s\n", path );
+	TEST_PRINT( stdout, "\n" );
 
-	fprintf( stdout, "#\tresult\ttest\tline\n" );
+	TEST_PRINT( stdout, "#\tresult\ttest\tline\n" );
 	{
 		Cini cini( path );
 		TEST( cini.geti( "", "key1", -999 ) == 100 );
@@ -175,17 +175,17 @@ void test_cpp( const char* path )
 		TEST( cini.isfailed() );
 	}
 
-	fprintf( stdout, "\n" );
+	TEST_PRINT( stdout, "\n" );
 
 	{
-		fprintf( stdout, "ERRORS:\n" );
+		TEST_PRINT( stdout, "ERRORS:\n" );
 		Cini cini( path );
 		int num_errors = cini.geterrorcount();
 		for( int i = 0; i < num_errors; i++ )
 		{
-			fprintf( stdout, "%4d\t%s\n", i + 1, cini.geterror( i ) );
+			TEST_PRINT( stdout, "%4d\t%s\n", i + 1, cini.geterror( i ) );
 		}
 	}
 
-	fprintf( stdout, "\n" );
+	TEST_PRINT( stdout, "\n" );
 }

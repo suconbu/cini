@@ -22,6 +22,12 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
+#ifdef CINI_WIN32
+#define _CRTDBG_MAP_ALLOC
+#include <crtdbg.h>
+#include <windows.h>
+#endif //CINI_WIN32
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -31,14 +37,12 @@
 #include <map>
 #include <string>
 #include <fstream>
-#ifdef CINI_WIN32
-#include <windows.h>
-#endif //CINI_WIN32
 
 #include "cini.h"
 
 #define CINI_SAFEDELETE( p )	(((p) != NULL) ? (delete (p), (p) = NULL) : NULL)
 
+#define CINI_LINEBUFFER_SIZE		1024
 #define CINI_SECTION_OPEN			"["
 #define CINI_SECTION_CLOSE			"]"
 #define CINI_COMMENT_CHARS			";"
@@ -70,6 +74,37 @@
 #define CINI_ASSERT( expr )
 #endif //CINI_WIN32
 
+template<class Type>
+class CiniAllocator : public std::allocator<Type>
+{
+public:
+	CiniAllocator() {}
+	CiniAllocator( const CiniAllocator& other ) {}
+
+	template<class OtherType>
+	CiniAllocator( const CiniAllocator<OtherType>& other ) {}
+
+	pointer allocate( size_type n, const_pointer hint = 0 )
+	{
+		size_t size = n * sizeof( Type );
+		return (pointer)std::malloc( size );
+	}
+
+	void deallocate( pointer ptr, size_type n )
+	{
+		std::free( ptr );
+	}
+
+	template<class OtherType>
+	struct rebind
+	{
+		typedef CiniAllocator<OtherType> other;
+	};
+};
+
+typedef std::basic_string<char, std::char_traits<char>, CiniAllocator<char>> String;
+typedef std::vector<String, CiniAllocator<String>> StringVector;
+
 //
 // Utility methods
 //
@@ -77,54 +112,58 @@
 class Util
 {
 public:
-	static std::string Trim( std::string& s, const char* trim_char = " \t\v\r\n" )
+	static void Trim( String& s, const char* trim_char = " \t\v\r\n" )
 	{
-		// http://program.station.ez-net.jp/special/handbook/cpp/std::string/trim.asp
-		std::string result;
-		std::string::size_type left = s.find_first_not_of( trim_char );
-		if( left != std::string::npos )
+		String::size_type left = s.find_first_not_of( trim_char );
+		if( left != String::npos )
 		{
-			std::string::size_type right = s.find_last_not_of( trim_char );
-			result = s.substr( left, right - left + 1 );
+			String::size_type right = s.find_last_not_of( trim_char );
+			if( left > 0 )
+			{
+				s.assign( s.c_str() + left, right - left + 1 );
+			}
+			else if( (right + 1) < s.size() )
+			{
+				s.resize( right + 1 );
+			}
+			else
+			{
+				// Do nothing
+			}
 		}
-		return result;
 	}
-	static bool StartWith( std::string& s, const char* value )
+	static bool StartWith( String& s, const char* value )
 	{
 		int len = strlen( value );
 		return s.compare( 0, len, value ) == 0;
 	}
-	static bool EndWith( std::string& s, const char* value )
+	static bool EndWith( String& s, const char* value )
 	{
 		int len = strlen( value );
 		int offset = s.length() - len;
 		return (offset >= 0) ? (s.compare( offset, len, value ) == 0) : false;
 	}
-	static std::string MakeString( const char* format, ... )
+	static String MakeString( const char* format, ... )
 	{
-		// https://msdn.microsoft.com/ja-jp/library/xa1a1a6z.aspx
-		std::string s;
+		String s;
 		va_list args;
 		va_start( args, format );
 		char buffer[256];
-		vsnprintf( buffer, sizeof(buffer) - 1, format, args );
+		vsnprintf( buffer, sizeof( buffer ) - 1, format, args );
 		s = buffer;
 		va_end( args );
 		return s;
 	}
-	static std::string ReplaceString( std::string& s, const char* olds, const char* news )
+	static void ReplaceString( String& s, const char* olds, const char* news )
 	{
-		// http://www.geocities.jp/eneces_jupiter_jp/cpp1/010-055.html
 		int oldlen = strlen( olds );
 		int newlen = strlen( news );
-		std::string r( s );
-		std::string::size_type pos( r.find( olds ) );
-		while( pos != std::string::npos )
+		String::size_type pos( s.find( olds ) );
+		while( pos != String::npos )
 		{
-			r.replace( pos, oldlen, news );
-			pos = r.find( olds, pos + newlen );
+			s.replace( pos, oldlen, news );
+			pos = s.find( olds, pos + newlen );
 		}
-		return r;
 	}
 };
 
@@ -135,7 +174,6 @@ public:
 class CiniBody
 {
 public:
-
 	enum ValueType
 	{
 		ValueType_Int,
@@ -148,19 +186,52 @@ public:
 		ValueType type;
 		int i;
 		float f;
-		std::string s;
+		String s;
 
 		bool IsNumeric() const
 		{
 			return type == ValueType_Int || type == ValueType_Float;
 		}
 	};
+	typedef std::vector<Value, CiniAllocator<Value>> ValueVector;
 
 	static CiniBody* CreateFromFile( const char* path );
 
-	int GetValueCount( const char* section_name, const char* key_name ) const;
-	const Value* GetValue( const char* section_name, const char* key_name ) const;
-	const Value* GetValue( const char* section_name, const char* key_name, int index ) const;
+	int GetValueCount( const char* section_name, const char* key_name ) const
+	{
+		int count = 0;
+		const Entry* entry = FindEntry( section_name, key_name );
+		if( entry != NULL )
+		{
+			count = entry->is_array ? entry->array_values.size() : 1;
+		}
+		return count;
+	}
+
+	const Value* GetValue( const char* section_name, const char* key_name ) const
+	{
+		const Value* value = NULL;
+		const Entry* entry = FindEntry( section_name, key_name );
+		if( entry != NULL )
+		{
+			value = &entry->value;
+		}
+		return value;
+	}
+
+	const Value* GetValue( const char* section_name, const char* key_name, int index ) const
+	{
+		const Value* value = NULL;
+		if( index >= 0 )
+		{
+			const Entry* entry = FindEntry( section_name, key_name );
+			if( entry != NULL && entry->is_array && index < static_cast<int>(entry->array_values.size()) )
+			{
+				value = &entry->array_values[index];
+			}
+		}
+		return value;
+	}
 
 	int GetErrorCount() const
 	{
@@ -174,36 +245,38 @@ public:
 private:
 	struct Entry
 	{
-		std::string key_name;
+		String key_name;
 		Value value;
 		bool is_array;
-		std::vector<Value> array_values;
+		ValueVector array_values;
 	};
+	typedef std::map<String, Entry, std::less<String>, CiniAllocator<std::pair<String, Entry>>> EntryMap;
 
 	struct Section
 	{
-		std::string name;
-		std::map<std::string, Entry> entries;
+		String name;
+		EntryMap entries;
 	};
+	typedef std::map<String, Section, std::less<String>, CiniAllocator<std::pair<String, Section>>> SectionMap;
 
 	class Parser
 	{
 	public:
-		static bool ParseFile( const char* path, std::map<std::string, Section>& sections, std::vector<std::string>& errors );
+		static bool ParseFile( const char* path, SectionMap& sections, StringVector& errors );
 
 	private:
 		int line_no_;
 		Section* current_section_;
-		std::map<std::string, Section>* sections_;
-		std::vector<std::string>* errors_;
-		
-		Parser(){}
+		SectionMap* sections_;
+		StringVector* errors_;
 
-		bool ParseLine( std::string& text );
-		bool ParseSection( std::string& text );
-		bool ParseEntry( std::string& text );
-		bool ParseArray( std::string& text, Entry& entry );
-		bool ParseValue( std::string& text, Value& value );
+		Parser() {}
+
+		bool ParseLine( String& text );
+		bool ParseSection( String& text );
+		bool ParseEntry( String& text );
+		bool ParseArray( String& text, Entry& entry );
+		bool ParseValue( String& text, Value& value );
 
 		void PushError( const char* message )
 		{
@@ -211,8 +284,8 @@ private:
 		}
 	};
 
-	std::map<std::string, Section> sections_;
-	std::vector<std::string> errors_;
+	SectionMap sections_;
+	StringVector errors_;
 
 	CiniBody();
 	const Entry* FindEntry( const char* section_name, const char* key_name ) const;
@@ -357,47 +430,47 @@ void cini_free( HCINI hcini )
 
 int cini_getcount( HCINI hcini, const char* section, const char* key )
 {
-	return (hcini != 0) ? ((Cini*)(hcini))->getcount( section, key ) : 0;
+	return (hcini != 0) ? (static_cast<Cini*>(hcini))->getcount( section, key ) : 0;
 }
 
 int cini_geti( HCINI hcini, const char* section, const char* key, int idefault )
 {
-	return (hcini != 0) ? ((Cini*)(hcini))->geti( section, key, idefault ) : idefault;
+	return (hcini != 0) ? (static_cast<Cini*>(hcini))->geti( section, key, idefault ) : idefault;
 }
 
 float cini_getf( HCINI hcini, const char* section, const char* key, float fdefault )
 {
-	return (hcini != 0) ? ((Cini*)(hcini))->getf( section, key, fdefault ) : fdefault;
+	return (hcini != 0) ? (static_cast<Cini*>(hcini))->getf( section, key, fdefault ) : fdefault;
 }
 
 const char*	cini_gets( HCINI hcini, const char* section, const char* key, const char* sdefault )
 {
-	return (hcini != 0) ? ((Cini*)(hcini))->gets( section, key, sdefault ) : sdefault;
+	return (hcini != 0) ? (static_cast<Cini*>(hcini))->gets( section, key, sdefault ) : sdefault;
 }
 
 int cini_getai( HCINI hcini, const char* section, const char* key, int index, int idefault )
 {
-	return (hcini != 0) ? ((Cini*)(hcini))->getai( section, key, index, idefault ) : idefault;
+	return (hcini != 0) ? (static_cast<Cini*>(hcini))->getai( section, key, index, idefault ) : idefault;
 }
 
 float cini_getaf( HCINI hcini, const char* section, const char* key, int index, float fdefault )
 {
-	return (hcini != 0) ? ((Cini*)(hcini))->getaf( section, key, index, fdefault ) : fdefault;
+	return (hcini != 0) ? (static_cast<Cini*>(hcini))->getaf( section, key, index, fdefault ) : fdefault;
 }
 
 const char*	cini_getas( HCINI hcini, const char* section, const char* key, int index, const char* sdefault )
 {
-	return (hcini != 0) ? ((Cini*)(hcini))->getas( section, key, index, sdefault ) : sdefault;
+	return (hcini != 0) ? (static_cast<Cini*>(hcini))->getas( section, key, index, sdefault ) : sdefault;
 }
 
 int cini_geterrorcount( HCINI hcini )
 {
-	return (hcini != 0) ? ((Cini*)(hcini))->geterrorcount() : 0;
+	return (hcini != 0) ? (static_cast<Cini*>(hcini))->geterrorcount() : 0;
 }
 
 const char* cini_geterror( HCINI hcini, int index )
 {
-	return (hcini != 0) ? ((Cini*)(hcini))->geterror( index ) : 0;
+	return (hcini != 0) ? (static_cast<Cini*>(hcini))->geterror( index ) : 0;
 }
 
 //
@@ -424,113 +497,78 @@ CiniBody* CiniBody::CreateFromFile( const char* path )
 	return body;
 }
 
-int CiniBody::GetValueCount( const char* section_name, const char* key_name ) const
+bool CiniBody::Parser::ParseFile( const char* path, SectionMap& sections, StringVector& errors )
 {
-	int count = 0;
-	const Entry* entry = FindEntry( section_name, key_name );
-	if( entry != NULL )
-	{
-		count = entry->is_array ? entry->array_values.size() : 1;
-	}
-	return count;
-}
-
-const CiniBody::Value* CiniBody::GetValue( const char* section_name, const char* key_name ) const
-{
-	const Value* value = NULL;
-	const Entry* entry = FindEntry( section_name, key_name );
-	if( entry != NULL )
-	{
-		value = &entry->value;
-	}
-	return value;
-}
-
-const CiniBody::Value* CiniBody::GetValue( const char* section_name, const char* key_name, int index ) const
-{
-	const Value* value = NULL;
-	if( index >= 0 )
-	{
-		const Entry* entry = FindEntry( section_name, key_name );
-		if( entry != NULL && entry->is_array && index < static_cast<int>(entry->array_values.size()) )
-		{
-			value = &entry->array_values[index];
-		}
-	}
-	return value;
-}
-
-bool CiniBody::Parser::ParseFile( const char* path, std::map<std::string, Section>& sections, std::vector<std::string>& errors )
-{
-	bool result = false;
 	std::ifstream ifs( path );
 
-	if( !ifs.fail() )
-	{
-		Parser parser;
-		parser.line_no_ = 1;
-		parser.sections_ = &sections;
-		parser.errors_ = &errors;
-
-		parser.current_section_ = &(*parser.sections_)[""];
-		parser.current_section_->name = "";
-
-		std::string line;
-		while( std::getline( ifs, line ) )
-		{
-			parser.ParseLine( line );
-			parser.line_no_++;
-		}
-
-		result = true;
-	}
-	else
+	if( ifs.fail() )
 	{
 		CINI_TRACE( "Fail to open file" );
+		return false;
 	}
-	return result;
+
+	Parser parser;
+	parser.line_no_ = 1;
+	parser.sections_ = &sections;
+	parser.errors_ = &errors;
+
+	parser.current_section_ = &(*parser.sections_)[""];
+	parser.current_section_->name = "";
+
+	std::vector<char> buffer( CINI_LINEBUFFER_SIZE );
+
+	String line;
+	while( ifs.getline( &buffer[0], buffer.capacity() ) )
+	{
+		line.assign( &buffer[0] );
+		parser.ParseLine( line );
+		parser.line_no_++;
+	}
+
+	return true;
 }
 
-bool CiniBody::Parser::ParseLine( std::string& text )
+bool CiniBody::Parser::ParseLine( String& text )
 {
 	CINI_ASSERT( sections_ != NULL );
 	CINI_ASSERT( errors_ != NULL );
 	CINI_ASSERT( current_section_ != NULL );
 
-	std::string t = Util::Trim( text );
-	if( t.length() == 0 )
+	Util::Trim( text );
+
+	if( text.length() == 0 )
 	{
 		// Blank line
 		return true;
 	}
 
-	if( Util::StartWith( t, CINI_COMMENT_CHARS ) )
+	if( Util::StartWith( text, CINI_COMMENT_CHARS ) )
 	{
 		// Comment line
 		return true;
 	}
 
-	if( Util::StartWith( t, CINI_SECTION_OPEN ) )
+	if( Util::StartWith( text, CINI_SECTION_OPEN ) )
 	{
-		return ParseSection( t );
+		return ParseSection( text );
 	}
 	else
 	{
-		return ParseEntry( t );
+		return ParseEntry( text );
 	}
 }
 
-bool CiniBody::Parser::ParseSection( std::string& text )
+bool CiniBody::Parser::ParseSection( String& text )
 {
-	std::string::size_type close_pos = text.find_first_of( CINI_SECTION_CLOSE, 1 );
-	if( close_pos == std::string::npos )
+	String::size_type close_pos = text.find( CINI_SECTION_CLOSE, 1 );
+	if( close_pos == String::npos )
 	{
-		PushError( "']' is missing, ignore the this line." );
+		PushError( Util::MakeString( "'%s' is missing, ignore the this line.", CINI_SECTION_CLOSE ).c_str() );
 		return false;
 	}
 
-	std::string section_name = text.substr( 1, close_pos - 1 );
-	section_name = Util::Trim( section_name );
+	String section_name( text.c_str() + 1, close_pos - 1 );
+	Util::Trim( section_name );
 	if( section_name.length() == 0 )
 	{
 		PushError( "Section name is empty, ignore the this line." );
@@ -544,23 +582,23 @@ bool CiniBody::Parser::ParseSection( std::string& text )
 	return true;
 }
 
-bool CiniBody::Parser::ParseEntry( std::string& text )
+bool CiniBody::Parser::ParseEntry( String& text )
 {
-	std::string::size_type separator_pos = text.find( CINI_ASSIGNMENT_OP );
-	if( separator_pos == std::string::npos )
+	String::size_type separator_pos = text.find( CINI_ASSIGNMENT_OP );
+	if( separator_pos == String::npos )
 	{
 		PushError( "'=' is missing, ignore the this line." );
 		return false;
 	}
 
-	std::string key_name = text.substr( 0, separator_pos );
-	key_name = Util::Trim( key_name );
+	String key_name( text.c_str(), separator_pos );
+	Util::Trim( key_name );
 	if( key_name.length() == 0 )
 	{
 		PushError( "Key name is empty, ignore the this line." );
 		return false;
 	}
-	if( key_name.find_first_of( CINI_KEY_PROHIBIT_CHARS ) != std::string::npos )
+	if( key_name.find_first_of( CINI_KEY_PROHIBIT_CHARS ) != String::npos )
 	{
 		PushError( "Key name includes prohibited character(" CINI_KEY_PROHIBIT_CHARS "), ignore the this line." );
 		return false;
@@ -576,11 +614,11 @@ bool CiniBody::Parser::ParseEntry( std::string& text )
 	current_entry->key_name = key_name;
 	current_entry->is_array = Util::EndWith( key_name, CINI_ARRAY_SUFFIX );
 
-	std::string::size_type start_pos = separator_pos + 1;
-	std::string::size_type end_pos = text.length();
+	String::size_type start_pos = separator_pos + 1;
+	String::size_type end_pos = text.length();
 
 	Value value;
-	std::string token = text.substr( start_pos, end_pos - start_pos );
+	String token( text.c_str() + start_pos, end_pos - start_pos );
 	bool parse_result = ParseValue( token, value );
 	if( parse_result )
 	{
@@ -599,16 +637,16 @@ bool CiniBody::Parser::ParseEntry( std::string& text )
 	return true;
 }
 
-bool CiniBody::Parser::ParseArray( std::string& text, Entry& entry )
+bool CiniBody::Parser::ParseArray( String& text, Entry& entry )
 {
-	std::string::size_type start_pos = 0;
+	String::size_type start_pos = 0;
 	do
 	{
 		int openQuote = '\0';
 		bool inQuote = false;
-		std::string::size_type pos = start_pos;
-		std::string::size_type end_pos = text.length();
-		std::string::size_type firstSeparatorPos = std::string::npos;
+		String::size_type pos = start_pos;
+		String::size_type end_pos = text.length();
+		String::size_type firstSeparatorPos = String::npos;
 
 		while( pos < text.length() )
 		{
@@ -641,7 +679,7 @@ bool CiniBody::Parser::ParseArray( std::string& text, Entry& entry )
 				}
 				else
 				{
-					if( firstSeparatorPos == std::string::npos )
+					if( firstSeparatorPos == String::npos )
 					{
 						// Save the separator position for if could not found the closing quote.
 						firstSeparatorPos = pos;
@@ -665,13 +703,13 @@ bool CiniBody::Parser::ParseArray( std::string& text, Entry& entry )
 			pos++;
 		}
 
-		if( inQuote && firstSeparatorPos != std::string::npos )
+		if( inQuote && firstSeparatorPos != String::npos )
 		{
 			end_pos = firstSeparatorPos;
 		}
 
 		Value value;
-		std::string token = text.substr( start_pos, end_pos - start_pos );
+		String token( text.c_str() + start_pos, end_pos - start_pos );
 		bool parse_result = ParseValue( token, value );
 		if( parse_result )
 		{
@@ -691,50 +729,64 @@ bool CiniBody::Parser::ParseArray( std::string& text, Entry& entry )
 	return true;
 }
 
-bool CiniBody::Parser::ParseValue( std::string& token, Value& value )
+bool CiniBody::Parser::ParseValue( String& token, Value& value )
 {
-	std::string s = Util::Trim( token );
+	Util::Trim( token );
 
 	value.type = ValueType_String;
 	value.i = 0;
 	value.f = 0.0F;
-	value.s = s;
 
-	if( s.find_first_of( "+-#0123456789" ) == 0 )
+	if( token.find_first_of( "+-#0123456789" ) == 0 )
 	{
 		char* endp = NULL;
 
 		// Integer number?
-		int i = strtol( Util::ReplaceString( s, "#", "0x" ).c_str(), &endp, 0 );
+		int i = 0;
+		size_t pos = token.find( '#' );
+		if( pos != String::npos )
+		{
+			token[pos] = '0';
+			i = strtol( token.c_str(), &endp, 16 );
+			token[pos] = '#';
+		}
+		else
+		{
+			i = strtol( token.c_str(), &endp, 0 );
+		}
 		if( *endp == '\0' )
 		{
 			value.type = ValueType_Int;
 			value.i = i;
 			value.f = static_cast<float>(i);
+			value.s = token;
 		}
 		else
 		{
 			// Real number?
-			float f = static_cast<float>(strtod( s.c_str(), &endp ));
+			float f = static_cast<float>(strtod( token.c_str(), &endp ));
 			if( *endp == '\0' )
 			{
 				value.type = ValueType_Float;
 				value.f = f;
 				value.i = static_cast<int>(f);
+				value.s = token;
 			}
 		}
 	}
 
 	if( value.type == ValueType_String )
 	{
-		if( s.length() > 2 )
+		if( token.length() > 2 &&
+			(token[0] == CINI_STRING_QUOTE1 || token[0] == CINI_STRING_QUOTE2) &&
+			token[0] == token[token.size() - 1] )
 		{
-			if( (s[0] == CINI_STRING_QUOTE1 && s[s.length() - 1] == CINI_STRING_QUOTE1) ||
-				(s[0] == CINI_STRING_QUOTE2 && s[s.length() - 1] == CINI_STRING_QUOTE2) )
-			{
-				// Remove the quote mark of both ends
-				value.s = s.substr( 1, s.length() - 2 );
-			}
+			// Remove the quote mark of both ends
+			value.s.assign( token.c_str() + 1, token.length() - 2 );
+		}
+		else
+		{
+			value.s = token;
 		}
 	}
 
@@ -744,10 +796,10 @@ bool CiniBody::Parser::ParseValue( std::string& token, Value& value )
 const CiniBody::Entry* CiniBody::FindEntry( const char * section_name, const char * key_name ) const
 {
 	const Entry* entry = NULL;
-	std::map<std::string, Section>::const_iterator section_itr = sections_.find( section_name );
+	SectionMap::const_iterator section_itr = sections_.find( section_name );
 	if( section_itr != sections_.end() )
 	{
-		const std::map<std::string, Entry>::const_iterator entry_itr = section_itr->second.entries.find( key_name );
+		const EntryMap::const_iterator entry_itr = section_itr->second.entries.find( key_name );
 		if( entry_itr != section_itr->second.entries.end() )
 		{
 			entry = &entry_itr->second;

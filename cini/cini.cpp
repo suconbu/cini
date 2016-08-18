@@ -275,7 +275,7 @@ private:
 		bool ParseLine( String& text );
 		bool ParseSection( String& text );
 		bool ParseEntry( String& text );
-		bool ParseArray( String& text, Entry& entry );
+		bool ParseArray( String& text, ValueVector& values );
 		bool ParseValue( String& text, Value& value );
 
 		void PushError( const char* message )
@@ -287,7 +287,7 @@ private:
 	SectionMap sections_;
 	StringVector errors_;
 
-	CiniBody();
+	CiniBody(){}
 	const Entry* FindEntry( const char* section_name, const char* key_name ) const;
 };
 
@@ -477,11 +477,6 @@ const char* cini_geterror( HCINI hcini, int index )
 // CiniBody class implementation
 //
 
-CiniBody::CiniBody()
-{
-	;
-}
-
 CiniBody* CiniBody::CreateFromFile( const char* path )
 {
 	CiniBody* body = new CiniBody();
@@ -617,27 +612,18 @@ bool CiniBody::Parser::ParseEntry( String& text )
 	String::size_type start_pos = separator_pos + 1;
 	String::size_type end_pos = text.length();
 
-	Value value;
 	String token( text.c_str() + start_pos, end_pos - start_pos );
-	bool parse_result = ParseValue( token, value );
-	if( parse_result )
-	{
-		current_entry->value = value;
-	}
-	else
-	{
-		PushError( Util::MakeString( "Could not parsed '%s'.", token.c_str() ).c_str() );
-	}
+	ParseValue( token, current_entry->value );
 
 	if( current_entry->is_array )
 	{
-		ParseArray( token, *current_entry );
+		ParseArray( token, current_entry->array_values );
 	}
 
 	return true;
 }
 
-bool CiniBody::Parser::ParseArray( String& text, Entry& entry )
+bool CiniBody::Parser::ParseArray( String& text, ValueVector& values )
 {
 	String::size_type start_pos = 0;
 	do
@@ -713,11 +699,11 @@ bool CiniBody::Parser::ParseArray( String& text, Entry& entry )
 		bool parse_result = ParseValue( token, value );
 		if( parse_result )
 		{
-			entry.array_values.push_back( value );
+			values.push_back( value );
 		}
 		else
 		{
-			PushError( Util::MakeString( "Could not parsed '%s'.", text.c_str() ).c_str() );
+			PushError( Util::MakeString( "Could not parsed '%s'.", token.c_str() ).c_str() );
 		}
 
 		start_pos = end_pos + 1;

@@ -192,5 +192,6 @@ void test_c( const char* path )
 		{
 			TEST_PRINT( stdout, "%4d\t%s\n", i + 1, cini_geterror( hcini, i ) );
 		}
+		cini_free( hcini );
 	}
 }

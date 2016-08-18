@@ -35,6 +35,7 @@ void test_c( const char* path )
 	TEST_PRINT( stdout, "\n" );
 
 	TEST_PRINT( stdout, "#\tresult\ttest\tline\n" );
+	// unnamed section
 	{
 		HCINI hcini = cini_create( path );
 		TEST( cini_geti( hcini, "", "key1", -999 ) == 100 );
@@ -44,6 +45,7 @@ void test_c( const char* path )
 		TEST( strcmp( cini_gets( hcini, "", "k e\ty 4", "ERROR" ), "TE  ST" ) == 0 );
 		cini_free( hcini );
 	}
+	// int section
 	{
 		HCINI hcini = cini_create( path );
 		TEST( cini_geti( hcini, "int section", "key1", -999 ) == 200 );
@@ -71,21 +73,27 @@ void test_c( const char* path )
 		TEST( cini_getcount( hcini, "int section", "key5" ) == 1 );
 		cini_free( hcini );
 	}
+	// float section
 	{
 		HCINI hcini = cini_create( path );
 		TEST( cini_getf( hcini, "float section", "key1", -999.0F ) == 12.34F );
 		TEST( cini_getf( hcini, "float section", "key2", -999.0F ) == -0.125F );
+		TEST( cini_getf( hcini, "float section", "key3", -999.0F ) == 1234.56F );
 
 		TEST( cini_geti( hcini, "float section", "key1", -999 ) == 12 );
 		TEST( cini_geti( hcini, "float section", "key2", -999 ) == 0 );
+		TEST( cini_geti( hcini, "float section", "key3", -999 ) == 1234 );
 
 		TEST( strcmp( cini_gets( hcini, "float section", "key1", "ERROR" ), "12.34" ) == 0 );
 		TEST( strcmp( cini_gets( hcini, "float section", "key2", "ERROR" ), "-0.125" ) == 0 );
+		TEST( strcmp( cini_gets( hcini, "float section", "key3", "ERROR" ), "12.3456e2" ) == 0 );
 
 		TEST( cini_getcount( hcini, "float section", "key1" ) == 1 );
 		TEST( cini_getcount( hcini, "float section", "key2" ) == 1 );
+		TEST( cini_getcount( hcini, "float section", "key3" ) == 1 );
 		cini_free( hcini );
 	}
+	// string section
 	{
 		HCINI hcini = cini_create( path );
 		TEST( strcmp( cini_gets( hcini, "string section", "key1", "ERROR" ), "TEXT" ) == 0 );
@@ -113,6 +121,7 @@ void test_c( const char* path )
 		TEST( cini_getcount( hcini, "string section", "key7" ) == 1 );
 		cini_free( hcini );
 	}
+	// array section
 	{
 		HCINI hcini = cini_create( path );
 		TEST( cini_getcount( hcini, "array section", "key1[]" ) == 4 );
@@ -127,9 +136,14 @@ void test_c( const char* path )
 		TEST( strcmp( cini_getas( hcini, "array section", "key1[]", 3, "ERROR" ), "" ) == 0 );
 		TEST( cini_getai( hcini, "array section", "key1[]", 4, -999 ) == -999 );
 
+		TEST( cini_getcount( hcini, "array section", "key1f[]" ) == 3 );
+		TEST( cini_getaf( hcini, "array section", "key1f[]", 0, -999.0F ) == 1.23F );
+		TEST( cini_getaf( hcini, "array section", "key1f[]", 1, -999.0F ) == -0.125F );
+		TEST( cini_getaf( hcini, "array section", "key1f[]", 2, -999.0F ) == 1234.56F );
+
 		TEST( cini_getcount( hcini, "array section", "key10" ) == 1 );
 		TEST( strcmp( cini_gets( hcini, "array section", "key10", "ERROR" ), "1,2,3," ) == 0 );
-		TEST( strcmp( cini_getas( hcini, "array section", "key10", 0, "ERROR" ), "1,2,3," ) != 0 );
+		TEST( strcmp( cini_getas( hcini, "array section", "key10", 0, "ERROR" ), "ERROR" ) == 0 );
 
 		TEST( cini_getcount( hcini, "array section", "key2[]" ) == 4 );
 		TEST( strcmp( cini_getas( hcini, "array section", "key2[]", 0, "ERROR" ), "A" ) == 0 );
@@ -172,13 +186,51 @@ void test_c( const char* path )
 		cini_free( hcini );
 	}
 	{
+		HCINI hcini = cini_create_with_section( path, 0 );
+		TEST( cini_geti( hcini, "", "key1", -999 ) == 100 );
+		TEST( cini_geti( hcini, "int section", "key1", -999 ) == 200 );
+		TEST( cini_getf( hcini, "float section", "key1", -999.0F ) == 12.34F );
+		TEST( strcmp( cini_gets( hcini, "string section", "key1", "ERROR" ), "TEXT" ) == 0 );
+		TEST( cini_getcount( hcini, "array section", "key1[]" ) == 4 );
+		TEST( cini_getai( hcini, "array section", "key1[]", 0, -999 ) == 1 );
+		TEST( cini_getaf( hcini, "array section", "key1f[]", 0, -999.0F ) == 1.23F );
+		TEST( strcmp( cini_gets( hcini, "array section", "key10", "ERROR" ), "1,2,3," ) == 0 );
+		cini_free( hcini );
+	}
+	{
+		HCINI hcini = cini_create_with_section( path, "" );
+		TEST( cini_geti( hcini, "", "key1", -999 ) == 100 );
+		TEST( cini_geti( hcini, "int section", "key1", -999 ) == -999 );
+		TEST( cini_getf( hcini, "float section", "key1", -999.0F ) == -999.0F );
+		TEST( strcmp( cini_gets( hcini, "string section", "key1", "ERROR" ), "TEXT" ) != 0 );
+		TEST( cini_getcount( hcini, "array section", "key1[]" ) == 0 );
+		TEST( cini_getai( hcini, "array section", "key1[]", 0, -999 ) == -999 );
+		TEST( cini_getaf( hcini, "array section", "key1f[]", 0, -999.0F ) == -999.0F );
+		TEST( strcmp( cini_gets( hcini, "array section", "key10", "ERROR" ), "1,2,3," ) != 0 );
+		cini_free( hcini );
+	}
+	{
+		HCINI hcini = cini_create_with_section( path, "int section" );
+		TEST( cini_geti( hcini, "", "key1", -999 ) == -999 );
+		TEST( cini_geti( hcini, "int section", "key1", -999 ) == 200 );
+		TEST( cini_getf( hcini, "float section", "key1", -999.0F ) == -999.0F );
+		TEST( strcmp( cini_gets( hcini, "string section", "key1", "ERROR" ), "TEXT" ) != 0 );
+		TEST( cini_getcount( hcini, "array section", "key1[]" ) == 0 );
+		TEST( cini_getai( hcini, "array section", "key1[]", 0, -999 ) == -999 );
+		TEST( cini_getaf( hcini, "array section", "key1f[]", 0, -999.0F ) == -999.0F );
+		TEST( strcmp( cini_gets( hcini, "array section", "key10", "ERROR" ), "1,2,3," ) != 0 );
+		cini_free( hcini );
+	}
+	{
 		HCINI hcini = cini_create( path );
 		TEST( hcini != NULL );
+		TEST( cini_isfailed( hcini ) == 0 );
 		cini_free( hcini );
 	}
 	{
 		HCINI hcini = cini_create( "alkjgbak4nubiato" );
-		TEST( hcini == NULL );
+		TEST( hcini != NULL );
+		TEST( cini_isfailed( hcini ) != 0 );
 		cini_free( hcini );
 	}
 

@@ -1,5 +1,5 @@
 //
-// cini.h - Comfortable ini parser for C/C++
+// cini.h - Convenient ini parser for C/C++
 // 
 // Copyright (C) 2016 suconbu.
 //
@@ -29,7 +29,7 @@
 
 #ifdef __cplusplus
 
-#define CINI_VERSION	"1.0.0"
+#define CINI_VERSION	"1.1.0"
 
 //
 // API for C++
@@ -38,7 +38,9 @@
 class Cini
 {
 public:
-	Cini( const char* path );
+	// Parse ini file and associate it to Cini instance
+	// If the 'section' is not null, the cini parse specific section only
+	Cini( const char* path, const char* section = 0 );
 	~Cini();
 
 	// If failed to load the ini file, the function returns true
@@ -93,10 +95,16 @@ typedef void* HCINI;
 //
 
 // Parse ini file and associate it to HCINI handle
+// cini_create - Parse the all of ini file
+// cini_create_with_section - Parse the specified section in ini file, it is faster than cini_create
 HCINI cini_create( const char* path );
+HCINI cini_create_with_section( const char* path, const char* section );
 
 // Release resources
 void cini_free( HCINI hcini );
+
+// If failed to load the ini file, the function returns non zero
+int cini_isfailed( HCINI hcini );
 
 // Get the value of indicated section and key
 // The function returns default value if could not find the entry or the value type was mismatch

@@ -28,7 +28,7 @@
 #define _TEST_H_
 
 #define TEST( cond )					print_test_result( (int)(cond), #cond, __LINE__ )
-#define TEST_PRINT( file, format, ... )	//fprintf( file, format, __VA_ARGS__ )
+#define TEST_PRINT( file, format, ... )	fprintf( file, format, __VA_ARGS__ )
 
 #ifdef __cplusplus
 extern "C" {

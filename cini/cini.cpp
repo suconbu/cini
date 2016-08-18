@@ -43,15 +43,15 @@
 #define CINI_SAFEDELETE( p )	(((p) != NULL) ? (delete (p), (p) = NULL) : NULL)
 
 #define CINI_LINEBUFFER_SIZE		1024
-#define CINI_SECTION_OPEN			"["
-#define CINI_SECTION_CLOSE			"]"
-#define CINI_COMMENT_CHARS			";"
+#define CINI_SECTION_OPEN_CHAR		'['
+#define CINI_SECTION_CLOSE_CHAR		']'
+#define CINI_COMMENT_CHAR			';'
 #define CINI_KEY_PROHIBIT_CHARS		"\""
 #define CINI_ASSIGNMENT_OP			"="
 #define CINI_ARRAY_SUFFIX			"[]"
-#define CINI_ARRAY_SEPARATOR		','
-#define CINI_STRING_QUOTE1			'"'
-#define CINI_STRING_QUOTE2			'\''
+#define CINI_ARRAY_SEPARATOR_CHAR	','
+#define CINI_STRING_QUOTE1_CHAR		'"'
+#define CINI_STRING_QUOTE2_CHAR		'\''
 
 //
 // For debug
@@ -112,12 +112,12 @@ typedef std::vector<String, CiniAllocator<String>> StringVector;
 class Util
 {
 public:
-	static void Trim( String& s, const char* trim_char = " \t\v\r\n" )
+	static void Trim( String& s, const char* trim_chars = " \t\v\r\n" )
 	{
-		String::size_type left = s.find_first_not_of( trim_char );
+		String::size_type left = s.find_first_not_of( trim_chars );
 		if( left != String::npos )
 		{
-			String::size_type right = s.find_last_not_of( trim_char );
+			String::size_type right = s.find_last_not_of( trim_chars );
 			if( left > 0 )
 			{
 				s.assign( s.c_str() + left, right - left + 1 );
@@ -195,7 +195,7 @@ public:
 	};
 	typedef std::vector<Value, CiniAllocator<Value>> ValueVector;
 
-	static CiniBody* CreateFromFile( const char* path );
+	static CiniBody* CreateFromFile( const char* path, const char* section_name );
 
 	int GetValueCount( const char* section_name, const char* key_name ) const
 	{
@@ -262,9 +262,10 @@ private:
 	class Parser
 	{
 	public:
-		static bool ParseFile( const char* path, SectionMap& sections, StringVector& errors );
+		static bool ParseFile( const char* path, const char* section_name, SectionMap& sections, StringVector& errors );
 
 	private:
+		const char* target_section_name_;
 		int line_no_;
 		Section* current_section_;
 		SectionMap* sections_;
@@ -277,6 +278,10 @@ private:
 		bool ParseEntry( String& text );
 		bool ParseArray( String& text, ValueVector& values );
 		bool ParseValue( String& text, Value& value );
+		bool IsTargetSection( const char* section_name )
+		{
+			return target_section_name_ == 0 || strcmp( section_name, target_section_name_ ) == 0;
+		}
 
 		void PushError( const char* message )
 		{
@@ -295,9 +300,9 @@ private:
 // Cini class implementation
 //
 
-Cini::Cini( const char* path )
+Cini::Cini( const char* path, const char* section )
 {
-	body_ = CiniBody::CreateFromFile( path );
+	body_ = CiniBody::CreateFromFile( path, section );
 }
 
 Cini::~Cini()
@@ -415,17 +420,22 @@ const char*	Cini::getas( const char* section, const char* key, int index, const 
 
 HCINI cini_create( const char* path )
 {
-	Cini* cini = new Cini( path );
-	if( cini != 0 && cini->isfailed() )
-	{
-		CINI_SAFEDELETE( cini );
-	}
-	return cini;
+	return new Cini( path );
+}
+
+HCINI cini_create_with_section( const char* path, const char* section )
+{
+	return new Cini( path, section );
 }
 
 void cini_free( HCINI hcini )
 {
 	CINI_SAFEDELETE( hcini );
+}
+
+int cini_isfailed( HCINI hcini )
+{
+	return (hcini != 0) ? ((static_cast<Cini*>(hcini))->isfailed() ? 1 : 0) : 1;
 }
 
 int cini_getcount( HCINI hcini, const char* section, const char* key )
@@ -477,12 +487,12 @@ const char* cini_geterror( HCINI hcini, int index )
 // CiniBody class implementation
 //
 
-CiniBody* CiniBody::CreateFromFile( const char* path )
+CiniBody* CiniBody::CreateFromFile( const char* path, const char* section_name )
 {
 	CiniBody* body = new CiniBody();
 	if( body != NULL )
 	{
-		bool result = Parser::ParseFile( path, body->sections_, body->errors_ );
+		bool result = Parser::ParseFile( path, section_name, body->sections_, body->errors_ );
 		if( !result )
 		{
 			CINI_TRACE( "Fail to parse file" );
@@ -492,7 +502,7 @@ CiniBody* CiniBody::CreateFromFile( const char* path )
 	return body;
 }
 
-bool CiniBody::Parser::ParseFile( const char* path, SectionMap& sections, StringVector& errors )
+bool CiniBody::Parser::ParseFile( const char* path, const char* section_name, SectionMap& sections, StringVector& errors )
 {
 	std::ifstream ifs( path );
 
@@ -503,6 +513,7 @@ bool CiniBody::Parser::ParseFile( const char* path, SectionMap& sections, String
 	}
 
 	Parser parser;
+	parser.target_section_name_ = section_name;
 	parser.line_no_ = 1;
 	parser.sections_ = &sections;
 	parser.errors_ = &errors;
@@ -537,28 +548,36 @@ bool CiniBody::Parser::ParseLine( String& text )
 		return true;
 	}
 
-	if( Util::StartWith( text, CINI_COMMENT_CHARS ) )
+	if( text[0] == CINI_COMMENT_CHAR )
 	{
 		// Comment line
 		return true;
 	}
 
-	if( Util::StartWith( text, CINI_SECTION_OPEN ) )
+	if( text[0] == CINI_SECTION_OPEN_CHAR )
 	{
 		return ParseSection( text );
 	}
 	else
 	{
-		return ParseEntry( text );
+		if( IsTargetSection( current_section_->name.c_str() ) )
+		{
+			return ParseEntry( text );
+		}
+		else
+		{
+			// Not a target section
+			return true;
+		}
 	}
 }
 
 bool CiniBody::Parser::ParseSection( String& text )
 {
-	String::size_type close_pos = text.find( CINI_SECTION_CLOSE, 1 );
+	String::size_type close_pos = text.find( CINI_SECTION_CLOSE_CHAR, 1 );
 	if( close_pos == String::npos )
 	{
-		PushError( Util::MakeString( "'%s' is missing, ignore the this line.", CINI_SECTION_CLOSE ).c_str() );
+		PushError( Util::MakeString( "'%c' is missing, ignore the this line.", CINI_SECTION_CLOSE_CHAR ).c_str() );
 		return false;
 	}
 
@@ -639,7 +658,7 @@ bool CiniBody::Parser::ParseArray( String& text, ValueVector& values )
 			int c = text[pos];
 			if( isspace( c ) == 0 )
 			{
-				if( c == CINI_STRING_QUOTE1 || c == CINI_STRING_QUOTE2 )
+				if( c == CINI_STRING_QUOTE1_CHAR || c == CINI_STRING_QUOTE2_CHAR )
 				{
 					openQuote = text[pos];
 					inQuote = true;
@@ -656,7 +675,7 @@ bool CiniBody::Parser::ParseArray( String& text, ValueVector& values )
 			{
 				;
 			}
-			else if( text[pos] == CINI_ARRAY_SEPARATOR )
+			else if( text[pos] == CINI_ARRAY_SEPARATOR_CHAR )
 			{
 				if( !inQuote )
 				{
@@ -764,7 +783,7 @@ bool CiniBody::Parser::ParseValue( String& token, Value& value )
 	if( value.type == ValueType_String )
 	{
 		if( token.length() > 2 &&
-			(token[0] == CINI_STRING_QUOTE1 || token[0] == CINI_STRING_QUOTE2) &&
+			(token[0] == CINI_STRING_QUOTE1_CHAR || token[0] == CINI_STRING_QUOTE2_CHAR) &&
 			token[0] == token[token.size() - 1] )
 		{
 			// Remove the quote mark of both ends

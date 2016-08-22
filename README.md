@@ -46,9 +46,9 @@ array2[] = One,"Two,Three",'Four,Five'
 	// iniファイルを参照するのはcini_createコール時のみ
 	// 取得した値はハンドル内に保持される
 	hcini = cini_create( "sample.ini" );
-	if( hcini == NULL )
+	if( hcini == NULL || cini_isfailed( hcini ) != 0 )
 	{
-		return;
+		// 'cini_get～'は渡されたハンドルがNULLまたは読み込み失敗している時、デフォルト値または0を返却
 	}
 
 	// 基本
@@ -57,7 +57,7 @@ array2[] = One,"Two,Three",'Four,Five'
 	i = cini_geti( hcini, "", "key2", -999 );		// 20
 	i = cini_geti( hcini, "", "key3", -999 );		// 30
 	s = cini_gets( hcini, "", "key4", "ERROR" );	// "10   ;コメントのつもり"
-	// cini_gets が返却した文字列ポインタは HCINI が解放されるまで有効
+	// 'cini_gets'が返却した文字列ポインタはハンドルが解放されるまでの間のみ有効
 
 	i = cini_geti( hcini, "section1", "key1", -999 );		// 100
 	i = cini_geti( hcini, "section1", "key2", -999 );		// 256(0x100)
@@ -105,7 +105,7 @@ array2[] = One,"Two,Three",'Four,Five'
 	Cini cini( "sample.ini" );
 	if( cini.isfailed() )
 	{
-		return;
+		// 読み込み失敗時、'get～'メソッドはデフォルト値または0を返却
 	}
 
 	// 基本

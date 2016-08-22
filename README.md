@@ -24,17 +24,16 @@ x：取得できます -：取得できません
 
 ### 配列 ###
 
-キー名の末尾に"[]"をつけると、ciniはそれが配列であると認識します。  
-配列の要素数は「getcount」関数、各要素の値は「geta～」関数を使用してそれぞれ取得することができます。
+ciniでは、値をカンマで区切ることで配列を表現することができます。
 
-* 配列では値をカンマ記号(「,」)で区切ることで複数の値を記述することができます
+* 配列の要素数は「getcount」関数、各要素の値は「geta～」関数を使用してそれぞれ取得することができます。
 * 一つの配列の中で異なるデータ型を混在させることができます
 * 文字列内に「,」を含める場合は、文字列の両端を「"」または「'」で囲みます
 
 記述例：  
 ```
-array1[] = 1, 0x2, #3, 4.56, Seven
-array2[] = One,"Two,Three",'Four,Five'
+array1 = 1, 0x2, #3, 4.56, Seven
+array2 = One,"Two,Three",'Four,Five'
 ```
 
 ### 使いかた ###
@@ -69,24 +68,24 @@ array2[] = One,"Two,Three",'Four,Five'
 
 	// 配列値
 
-	i = cini_getcount( hcini, "section2", "key1[]" );			// 4
-	i = cini_getai( hcini, "section2", "key1[]", 0, -999 );		// 1
-	i = cini_getai( hcini, "section2", "key1[]", 1, -999 );		// 2
-	i = cini_getai( hcini, "section2", "key1[]", 2, -999 );		// 3
-	i = cini_getai( hcini, "section2", "key1[]", 3, -999 );		// 4
-	i = cini_getai( hcini, "section2", "key1[]", 4, -999 );		// -999 (インデックス範囲外エラー)
+	i = cini_getcount( hcini, "section2", "key1" );				// 4
+	i = cini_getai( hcini, "section2", "key1", 0, -999 );		// 1
+	i = cini_getai( hcini, "section2", "key1", 1, -999 );		// 2
+	i = cini_getai( hcini, "section2", "key1", 2, -999 );		// 3
+	i = cini_getai( hcini, "section2", "key1", 3, -999 );		// 4
+	i = cini_getai( hcini, "section2", "key1", 4, -999 );		// -999 (インデックス範囲外エラー)
 
-	i = cini_getcount( hcini, "section2", "key2[]" );			// 5
-	i = cini_getai( hcini, "section2", "key2[]", 0, -999 );		// 1
-	i = cini_getai( hcini, "section2", "key2[]", 1, -999 );		// 2
-	i = cini_getai( hcini, "section2", "key2[]", 2, -999 );		// 3
-	f = cini_getaf( hcini, "section2", "key2[]", 3, -999.0 );	// 4.55999994F
-	s = cini_getas( hcini, "section2", "key2[]", 4, "ERROR" );	// "Seven"
+	i = cini_getcount( hcini, "section2", "key2" );				// 5
+	i = cini_getai( hcini, "section2", "key2", 0, -999 );		// 1
+	i = cini_getai( hcini, "section2", "key2", 1, -999 );		// 2
+	i = cini_getai( hcini, "section2", "key2", 2, -999 );		// 3
+	f = cini_getaf( hcini, "section2", "key2", 3, -999.0 );		// 4.55999994F
+	s = cini_getas( hcini, "section2", "key2", 4, "ERROR" );	// "Seven"
 
-	i = cini_getcount( hcini, "section2", "key3[]" );			// 3
-	s = cini_getas( hcini, "section2", "key3[]", 0, "ERROR" );	// "One"
-	s = cini_getas( hcini, "section2", "key3[]", 1, "ERROR" );	// "Two,Three"
-	s = cini_getas( hcini, "section2", "key3[]", 2, "ERROR" );	// "Four,Five"
+	i = cini_getcount( hcini, "section2", "key3" );				// 3
+	s = cini_getas( hcini, "section2", "key3", 0, "ERROR" );	// "One"
+	s = cini_getas( hcini, "section2", "key3", 1, "ERROR" );	// "Two,Three"
+	s = cini_getas( hcini, "section2", "key3", 2, "ERROR" );	// "Four,Five"
 
 	i = cini_geterrorcount( hcini );	// 1
 	for( index = 0; index < i; index++ )
@@ -125,24 +124,24 @@ array2[] = One,"Two,Three",'Four,Five'
 
 	// 配列値
 
-	i = cini.getcount( "section2", "key1[]" );			// 4
-	i = cini.getai( "section2", "key1[]", 0, -999 );	// 1
-	i = cini.getai( "section2", "key1[]", 1, -999 );	// 2
-	i = cini.getai( "section2", "key1[]", 2, -999 );	// 3
-	i = cini.getai( "section2", "key1[]", 3, -999 );	// 4
-	i = cini.getai( "section2", "key1[]", 4, -999 );	// -999 (インデックス範囲外エラー)
+	i = cini.getcount( "section2", "key1" );			// 4
+	i = cini.getai( "section2", "key1", 0, -999 );		// 1
+	i = cini.getai( "section2", "key1", 1, -999 );		// 2
+	i = cini.getai( "section2", "key1", 2, -999 );		// 3
+	i = cini.getai( "section2", "key1", 3, -999 );		// 4
+	i = cini.getai( "section2", "key1", 4, -999 );		// -999 (インデックス範囲外エラー)
 
-	i = cini.getcount( "section2", "key2[]" );			// 5
-	i = cini.getai( "section2", "key2[]", 0, -999 );	// 1
-	i = cini.getai( "section2", "key2[]", 1, -999 );	// 2
-	i = cini.getai( "section2", "key2[]", 2, -999 );	// 3
-	f = cini.getaf( "section2", "key2[]", 3, -999.0 );	// 4.55999994F
-	s = cini.getas( "section2", "key2[]", 4, "ERROR" );	// "Seven"
+	i = cini.getcount( "section2", "key2" );			// 5
+	i = cini.getai( "section2", "key2", 0, -999 );		// 1
+	i = cini.getai( "section2", "key2", 1, -999 );		// 2
+	i = cini.getai( "section2", "key2", 2, -999 );		// 3
+	f = cini.getaf( "section2", "key2", 3, -999.0 );	// 4.55999994F
+	s = cini.getas( "section2", "key2", 4, "ERROR" );	// "Seven"
 
-	i = cini.getcount( "section2", "key3[]" );			// 3
-	s = cini.getas( "section2", "key3[]", 0, "ERROR" );	// "One"
-	s = cini.getas( "section2", "key3[]", 1, "ERROR" );	// "Two,Three"
-	s = cini.getas( "section2", "key3[]", 2, "ERROR" );	// "Four,Five"
+	i = cini.getcount( "section2", "key3" );			// 3
+	s = cini.getas( "section2", "key3", 0, "ERROR" );	// "One"
+	s = cini.getas( "section2", "key3", 1, "ERROR" );	// "Two,Three"
+	s = cini.getas( "section2", "key3", 2, "ERROR" );	// "Four,Five"
 
 	i = cini.geterrorcount();	// 1
 	for( index = 0; index < i; index++ )
@@ -161,7 +160,7 @@ key1=10
 ;キーや値の前後の空白文字は除去される
  key2 = 20
 		key3         =     30           
-;行の途中の「;」はコメント開始として認識されず
+;行の途中の「;」はコメント開始として認識されない
 ;以下は「10   ;コメントのつもり」という文字列と認識
 key4=10   ;コメントのつもり
 
@@ -182,11 +181,10 @@ key6 = "THIS IS A PEN."
 key7 = THIS IS A "PEN".
 
 [section2]
-;キー名末尾に「[]」を付与すると配列値の指定が可能(cini独自拡張)
-;配列値は値をカンマで区切る
-key1[] = 1,2,3,4
-;異なる形式を混在させることが可能
-key2[] = 1, 0x2, #3, 4.56, Seven
+;値をカンマで区切ることで配列を表現
+key1 = 1,2,3,4
+;異なるデータ型の混在が可能
+key2 = 1, 0x2, #3, 4.56, Seven
 ;文字列中に「,」を含めたい場合は「"」または「'」で囲む
-key3[] = One  ,  "Two,Three"  ,  'Four,Five'
+key3 = One  ,  "Two,Three"  ,  'Four,Five'
 ```

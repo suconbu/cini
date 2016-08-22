@@ -99,7 +99,7 @@ void test_cpp( const char* path )
 		TEST( strcmp( cini.gets( "string section", "key4", "ERROR" ), "TEXT" ) == 0 );
 		TEST( strcmp( cini.gets( "string section", "key5", "ERROR" ), "\"TEXT\"" ) == 0 );
 		TEST( strcmp( cini.gets( "string section", "key6", "ERROR" ), "\"TEXT\" TEXT" ) == 0 );
-		TEST( strcmp( cini.gets( "string section", "key7", "ERROR" ), "AA,BB,CC;DD,EE,FF" ) == 0 );
+		TEST( strcmp( cini.gets( "string section", "key7", "ERROR" ), "AA,BB,CC;DD,EE,FF,‚ ,‚¢,‚¤" ) == 0 );
 
 		TEST( cini.geti( "string section", "key1", -999 ) == -999 );
 		TEST( cini.geti( "string section", "key2", -999 ) == -999 );
@@ -120,62 +120,43 @@ void test_cpp( const char* path )
 	// array section
 	{
 		Cini cini( path );
-		TEST( cini.getcount( "array section", "key1[]" ) == 4 );
+		TEST( cini.getcount( "array section", "key1" ) == 4 );
 
-		TEST( cini.geti( "array section", "key1[]", -999 ) == -999 );
-		TEST( strcmp( cini.gets( "array section", "key1[]", "ERROR" ), "1,2,3," ) == 0 );
+		TEST( cini.geti( "array section", "key1", -999 ) == -999 );
+		TEST( strcmp( cini.gets( "array section", "key1", "ERROR" ), "1,2,3," ) == 0 );
 
-		TEST( cini.getai( "array section", "key1[]", 0, -999 ) == 1 );
-		TEST( cini.getai( "array section", "key1[]", 1, -999 ) == 2 );
-		TEST( cini.getai( "array section", "key1[]", 2, -999 ) == 3 );
-		TEST( cini.getai( "array section", "key1[]", 3, -999 ) == -999 );
-		TEST( strcmp( cini.getas( "array section", "key1[]", 3, "ERROR" ), "" ) == 0 );
-		TEST( cini.getai( "array section", "key1[]", 4, -999 ) == -999 );
+		TEST( cini.getai( "array section", "key1", 0, -999 ) == 1 );
+		TEST( cini.getai( "array section", "key1", 1, -999 ) == 2 );
+		TEST( cini.getai( "array section", "key1", 2, -999 ) == 3 );
+		TEST( cini.getai( "array section", "key1", 3, -999 ) == -999 );
+		TEST( strcmp( cini.getas( "array section", "key1", 3, "ERROR" ), "" ) == 0 );
+		TEST( cini.getai( "array section", "key1", 4, -999 ) == -999 );
 
-		TEST( cini.getcount( "array section", "key1f[]" ) == 3 );
-		TEST( cini.getaf( "array section", "key1f[]", 0, -999.0F ) == 1.23F );
-		TEST( cini.getaf( "array section", "key1f[]", 1, -999.0F ) == -0.125F );
-		TEST( cini.getaf( "array section", "key1f[]", 2, -999.0F ) == 1234.56F );
+		TEST( cini.getcount( "array section", "key10" ) == 3 );
+		TEST( cini.getaf( "array section", "key10", 0, -999.0F ) == 1.23F );
+		TEST( cini.getaf( "array section", "key10", 1, -999.0F ) == -0.125F );
+		TEST( cini.getaf( "array section", "key10", 2, -999.0F ) == 1234.56F );
 
-		TEST( cini.getcount( "array section", "key10" ) == 1 );
-		TEST( strcmp( cini.gets( "array section", "key10", "ERROR" ), "1,2,3," ) == 0 );
-		TEST( strcmp( cini.getas( "array section", "key10", 0, "ERROR" ), "1,2,3," ) != 0 );
+		TEST( cini.getcount( "array section", "key2" ) == 4 );
+		TEST( strcmp( cini.getas( "array section", "key2", 0, "ERROR" ), "A" ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key2", 1, "ERROR" ), "BB" ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key2", 2, "ERROR" ), "CCC,DDDD" ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key2", 3, "ERROR" ), "EEEEE" ) == 0 );
 
-		TEST( cini.getcount( "array section", "key2[]" ) == 4 );
-		TEST( strcmp( cini.getas( "array section", "key2[]", 0, "ERROR" ), "A" ) == 0 );
-		TEST( strcmp( cini.getas( "array section", "key2[]", 1, "ERROR" ), "BB" ) == 0 );
-		TEST( strcmp( cini.getas( "array section", "key2[]", 2, "ERROR" ), "CCC,DDDD" ) == 0 );
-		TEST( strcmp( cini.getas( "array section", "key2[]", 3, "ERROR" ), "EEEEE" ) == 0 );
+		TEST( cini.getcount( "array section", "key20" ) == 6 );
+		TEST( strcmp( cini.getas( "array section", "key20", 0, "ERROR" ), "AA" ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key20", 1, "ERROR" ), "BB" ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key20", 2, "ERROR" ), "C\"C\"C , C " ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key20", 3, "ERROR" ), "\"D" ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key20", 4, "ERROR" ), "E E\"E" ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key20", 5, "ERROR" ), "F" ) == 0 );
 
-		TEST( cini.getcount( "array section", "key20[]" ) == 6 );
-		TEST( strcmp( cini.getas( "array section", "key20[]", 0, "ERROR" ), "AA" ) == 0 );
-		TEST( strcmp( cini.getas( "array section", "key20[]", 1, "ERROR" ), "BB" ) == 0 );
-		TEST( strcmp( cini.getas( "array section", "key20[]", 2, "ERROR" ), "C\"C\"C , C " ) == 0 );
-		TEST( strcmp( cini.getas( "array section", "key20[]", 3, "ERROR" ), "\"D" ) == 0 );
-		TEST( strcmp( cini.getas( "array section", "key20[]", 4, "ERROR" ), "E E\"E" ) == 0 );
-		TEST( strcmp( cini.getas( "array section", "key20[]", 5, "ERROR" ), "F" ) == 0 );
-
-		TEST( cini.getcount( "array section", "key21[]" ) == 5 );
-		TEST( strcmp( cini.getas( "array section", "key21[]", 0, "ERROR" ), "AA" ) == 0 );
-		TEST( strcmp( cini.getas( "array section", "key21[]", 1, "ERROR" ), "BB\" , \"B\"B\"B , B " ) == 0 );
-		TEST( strcmp( cini.getas( "array section", "key21[]", 2, "ERROR" ), "C, C C'C'" ) == 0 );
-		TEST( strcmp( cini.getas( "array section", "key21[]", 3, "ERROR" ), "\"D'" ) == 0 );
-		TEST( strcmp( cini.getas( "array section", "key21[]", 4, "ERROR" ), "F" ) == 0 );
-
-		TEST( cini.getcount( "array section", "key3[]" ) == 1 );
-		TEST( cini.geti( "array section", "key3[]", -999 ) == 1 );
-
-		TEST( cini.getcount( "array section", "key4[100]" ) == 1 );
-		TEST( strcmp( cini.gets( "array section", "key4[100]", "ERROR" ), "1,2,3" ) == 0 );
-		TEST( cini.getai( "array section", "key4[100]", 0, -999 ) == -999 );
-
-		TEST( cini.getcount( "array section", "key5[ ]" ) == 1 );
-		TEST( strcmp( cini.gets( "array section", "key5[ ]", "ERROR" ), "1,2,3" ) == 0 );
-		TEST( cini.getai( "array section", "key5[ ]", 0, -999 ) == -999 );
-
-		TEST( cini.getcount( "array section", "key[]6" ) == 1 );
-		TEST( strcmp( cini.gets( "array section", "key[]6", "ERROR" ), "1,2,3" ) == 0 );
-		TEST( cini.getai( "array section", "key[]6", 0, -999 ) == -999 );
+		TEST( cini.getcount( "array section", "key21" ) == 5 );
+		TEST( strcmp( cini.getas( "array section", "key21", 0, "ERROR" ), "AA" ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key21", 1, "ERROR" ), "BB\" , \"B\"B\"B , B " ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key21", 2, "ERROR" ), "C, C C'C'" ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key21", 3, "ERROR" ), "\"D'" ) == 0 );
+		TEST( strcmp( cini.getas( "array section", "key21", 4, "ERROR" ), "F" ) == 0 );
 
 		TEST( cini.geti( "error", "int over", -999 ) == -999 );
 		TEST( cini.geti( "error", "float over", -999 ) == -999 );
@@ -186,10 +167,9 @@ void test_cpp( const char* path )
 		TEST( cini.geti( "int section", "key1", -999 ) == 200 );
 		TEST( cini.getf( "float section", "key1", -999.0F ) == 12.34F );
 		TEST( strcmp( cini.gets( "string section", "key1", "ERROR" ), "TEXT" ) == 0 );
-		TEST( cini.getcount( "array section", "key1[]" ) == 4 );
-		TEST( cini.getai( "array section", "key1[]", 0, -999 ) == 1 );
-		TEST( cini.getaf( "array section", "key1f[]", 0, -999.0F ) == 1.23F );
-		TEST( strcmp( cini.gets( "array section", "key10", "ERROR" ), "1,2,3," ) == 0 );
+		TEST( cini.getcount( "array section", "key1" ) == 4 );
+		TEST( cini.getai( "array section", "key1", 0, -999 ) == 1 );
+		TEST( cini.getaf( "array section", "key10", 0, -999.0F ) == 1.23F );
 	}
 	{
 		Cini cini( path, "" );
@@ -197,10 +177,9 @@ void test_cpp( const char* path )
 		TEST( cini.geti( "int section", "key1", -999 ) == -999 );
 		TEST( cini.getf( "float section", "key1", -999.0F ) == -999.0F );
 		TEST( strcmp( cini.gets( "string section", "key1", "ERROR" ), "TEXT" ) != 0 );
-		TEST( cini.getcount( "array section", "key1[]" ) == 0 );
-		TEST( cini.getai( "array section", "key1[]", 0, -999 ) == -999 );
-		TEST( cini.getaf( "array section", "key1f[]", 0, -999.0F ) == -999.0F );
-		TEST( strcmp( cini.gets( "array section", "key10", "ERROR" ), "1,2,3," ) != 0 );
+		TEST( cini.getcount( "array section", "key1" ) == 0 );
+		TEST( cini.getai( "array section", "key1", 0, -999 ) == -999 );
+		TEST( cini.getaf( "array section", "key10", 0, -999.0F ) == -999.0F );
 	}
 	{
 		Cini cini( path, "int section" );
@@ -208,10 +187,9 @@ void test_cpp( const char* path )
 		TEST( cini.geti( "int section", "key1", -999 ) == 200 );
 		TEST( cini.getf( "float section", "key1", -999.0F ) == -999.0F );
 		TEST( strcmp( cini.gets( "string section", "key1", "ERROR" ), "TEXT" ) != 0 );
-		TEST( cini.getcount( "array section", "key1[]" ) == 0 );
-		TEST( cini.getai( "array section", "key1[]", 0, -999 ) == -999 );
-		TEST( cini.getaf( "array section", "key1f[]", 0, -999.0F ) == -999.0F );
-		TEST( strcmp( cini.gets( "array section", "key10", "ERROR" ), "1,2,3," ) != 0 );
+		TEST( cini.getcount( "array section", "key1" ) == 0 );
+		TEST( cini.getai( "array section", "key1", 0, -999 ) == -999 );
+		TEST( cini.getaf( "array section", "key10", 0, -999.0F ) == -999.0F );
 	}
 	{
 		Cini cini( path );

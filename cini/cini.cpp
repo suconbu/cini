@@ -46,9 +46,8 @@
 #define CINI_SECTION_OPEN_CHAR		'['
 #define CINI_SECTION_CLOSE_CHAR		']'
 #define CINI_COMMENT_CHAR			';'
-#define CINI_KEY_PROHIBIT_CHARS		"\""
+#define CINI_KEY_PROHIBIT_CHARS		"\"'"
 #define CINI_ASSIGNMENT_OP			"="
-#define CINI_ARRAY_SUFFIX			"[]"
 #define CINI_ARRAY_SEPARATOR_CHAR	','
 #define CINI_STRING_QUOTE1_CHAR		'"'
 #define CINI_STRING_QUOTE2_CHAR		'\''
@@ -203,7 +202,7 @@ public:
 		const Entry* entry = FindEntry( section_name, key_name );
 		if( entry != NULL )
 		{
-			count = entry->is_array ? entry->array_values.size() : 1;
+			count = entry->array_values.size();
 		}
 		return count;
 	}
@@ -225,7 +224,7 @@ public:
 		if( index >= 0 )
 		{
 			const Entry* entry = FindEntry( section_name, key_name );
-			if( entry != NULL && entry->is_array && index < static_cast<int>(entry->array_values.size()) )
+			if( entry != NULL && index < static_cast<int>(entry->array_values.size()) )
 			{
 				value = &entry->array_values[index];
 			}
@@ -247,7 +246,6 @@ private:
 	{
 		String key_name;
 		Value value;
-		bool is_array;
 		ValueVector array_values;
 	};
 	typedef std::map<String, Entry, std::less<String>, CiniAllocator<std::pair<String, Entry>>> EntryMap;
@@ -276,7 +274,7 @@ private:
 		bool ParseLine( String& text );
 		bool ParseSection( String& text );
 		bool ParseEntry( String& text );
-		bool ParseArray( String& text, ValueVector& values );
+		bool ParseArray( String& text, ValueVector& array_values );
 		bool ParseValue( String& text, Value& value );
 		bool IsTargetSection( const char* section_name )
 		{
@@ -626,23 +624,18 @@ bool CiniBody::Parser::ParseEntry( String& text )
 
 	Entry* current_entry = &current_section_->entries[key_name];
 	current_entry->key_name = key_name;
-	current_entry->is_array = Util::EndWith( key_name, CINI_ARRAY_SUFFIX );
 
 	String::size_type start_pos = separator_pos + 1;
 	String::size_type end_pos = text.length();
 
 	String token( text.c_str() + start_pos, end_pos - start_pos );
 	ParseValue( token, current_entry->value );
-
-	if( current_entry->is_array )
-	{
-		ParseArray( token, current_entry->array_values );
-	}
+	ParseArray( token, current_entry->array_values );
 
 	return true;
 }
 
-bool CiniBody::Parser::ParseArray( String& text, ValueVector& values )
+bool CiniBody::Parser::ParseArray( String& text, ValueVector& array_values )
 {
 	String::size_type start_pos = 0;
 	do
@@ -670,7 +663,7 @@ bool CiniBody::Parser::ParseArray( String& text, ValueVector& values )
 		}
 		while( pos < text.length() )
 		{
-			int c = text[pos];
+			int c = (unsigned char)text[pos];
 			if( isspace( c ) != 0 )
 			{
 				;
@@ -718,7 +711,7 @@ bool CiniBody::Parser::ParseArray( String& text, ValueVector& values )
 		bool parse_result = ParseValue( token, value );
 		if( parse_result )
 		{
-			values.push_back( value );
+			array_values.push_back( value );
 		}
 		else
 		{

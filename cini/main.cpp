@@ -27,7 +27,9 @@
 
 int _tmain(int argc, _TCHAR* argv[])
 {
+#ifdef CINI_WIN32
 	_CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
+#endif //CINI_WIN32
 
 	const char* path = "test.ini";
 

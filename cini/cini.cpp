@@ -45,7 +45,7 @@
 #define CINI_LINEBUFFER_SIZE		1024
 #define CINI_SECTION_OPEN_CHAR		'['
 #define CINI_SECTION_CLOSE_CHAR		']'
-#define CINI_COMMENT_CHAR			';'
+#define CINI_COMMENT_CHARS			";#"
 #define CINI_KEY_PROHIBIT_CHARS		"\"'"
 #define CINI_ASSIGNMENT_OP			"="
 #define CINI_ARRAY_SEPARATOR_CHAR	','
@@ -73,36 +73,50 @@
 #define CINI_ASSERT( expr )
 #endif //CINI_WIN32
 
-template<class Type>
-class CiniAllocator : public std::allocator<Type>
+// Custom allocator
+template<class T>
+class CiniAllocator
 {
 public:
-	CiniAllocator() {}
-	CiniAllocator( const CiniAllocator& other ) {}
+	typedef size_t		size_type;
+	typedef ptrdiff_t	difference_type;
+	typedef T*			pointer;
+	typedef const T*	const_pointer;
+	typedef T&			reference;
+	typedef const T&	const_reference;
+	typedef T			value_type;
 
-	template<class OtherType>
-	CiniAllocator( const CiniAllocator<OtherType>& other ) {}
+	CiniAllocator() throw() {}
+	CiniAllocator( const CiniAllocator& ) throw() {}
+	template<class U> CiniAllocator( const CiniAllocator<U>& ) throw() {}
+	~CiniAllocator() throw(){}
+	template<class U> struct rebind { typedef CiniAllocator<U> other; };
+	pointer address( reference x ) const { return &x; }
+	const_pointer address( const_reference x ) const { return &x; }
+	void construct( pointer p, const T& val ) { new ((void*)p) T( val ); }
+	void destroy( pointer p ) { (p)->~T(); }
+	char* _Charalloc( size_type n ) { return allocate( n ); }
 
-	pointer allocate( size_type n, const_pointer hint = 0 )
+	pointer allocate( size_type n, const void* hint = 0 )
 	{
-		size_t size = n * sizeof( Type );
-		return (pointer)std::malloc( size );
+		return (pointer)operator new(n * sizeof( T ));
 	}
 
-	void deallocate( pointer ptr, size_type n )
+	void deallocate( pointer p, size_type n )
 	{
-		std::free( ptr );
+		operator delete(p);
 	}
 
-	template<class OtherType>
-	struct rebind
+	size_type max_size() const
 	{
-		typedef CiniAllocator<OtherType> other;
-	};
+		return (size_t)-1 / sizeof( T );
+	}
 };
+template <class T1, class T2> bool operator==(const CiniAllocator<T1>&, const CiniAllocator<T2>&) throw() { return true; }
+template <class T1, class T2> bool operator!=(const CiniAllocator<T1>&, const CiniAllocator<T2>&) throw() { return false; }
 
-typedef std::basic_string<char, std::char_traits<char>, CiniAllocator<char>> String;
-typedef std::vector<String, CiniAllocator<String>> StringVector;
+typedef std::basic_string<char, std::char_traits<char>, CiniAllocator<char> > String;
+typedef std::vector<String, CiniAllocator<String> > StringVector;
 
 //
 // Utility methods
@@ -131,38 +145,26 @@ public:
 			}
 		}
 	}
-	static bool StartWith( String& s, const char* value )
+	static bool Contains( const char* s, char c )
 	{
-		int len = strlen( value );
-		return s.compare( 0, len, value ) == 0;
-	}
-	static bool EndWith( String& s, const char* value )
-	{
-		int len = strlen( value );
-		int offset = s.length() - len;
-		return (offset >= 0) ? (s.compare( offset, len, value ) == 0) : false;
+		for( int i = 0; s[i] != '\0'; i++ )
+		{
+			if( s[i] == c )
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 	static String MakeString( const char* format, ... )
 	{
-		String s;
 		va_list args;
 		va_start( args, format );
-		char buffer[256];
-		vsnprintf( buffer, sizeof( buffer ) - 1, format, args );
-		s = buffer;
+		std::vector<char> buffer( 256 );
+		vsnprintf( &buffer[0], buffer.capacity(), format, args );
+		String s = &buffer[0];
 		va_end( args );
 		return s;
-	}
-	static void ReplaceString( String& s, const char* olds, const char* news )
-	{
-		int oldlen = strlen( olds );
-		int newlen = strlen( news );
-		String::size_type pos( s.find( olds ) );
-		while( pos != String::npos )
-		{
-			s.replace( pos, oldlen, news );
-			pos = s.find( olds, pos + newlen );
-		}
 	}
 };
 
@@ -192,7 +194,7 @@ public:
 			return type == ValueType_Int || type == ValueType_Float;
 		}
 	};
-	typedef std::vector<Value, CiniAllocator<Value>> ValueVector;
+	typedef std::vector<Value, CiniAllocator<Value> > ValueVector;
 
 	static CiniBody* CreateFromFile( const char* path, const char* section_name );
 
@@ -248,14 +250,14 @@ private:
 		Value value;
 		ValueVector array_values;
 	};
-	typedef std::map<String, Entry, std::less<String>, CiniAllocator<std::pair<String, Entry>>> EntryMap;
+	typedef std::map<String, Entry, std::less<String>, CiniAllocator<std::pair<String, Entry> > > EntryMap;
 
 	struct Section
 	{
 		String name;
 		EntryMap entries;
 	};
-	typedef std::map<String, Section, std::less<String>, CiniAllocator<std::pair<String, Section>>> SectionMap;
+	typedef std::map<String, Section, std::less<String>, CiniAllocator<std::pair<String, Section> > > SectionMap;
 
 	class Parser
 	{
@@ -546,7 +548,7 @@ bool CiniBody::Parser::ParseLine( String& text )
 		return true;
 	}
 
-	if( text[0] == CINI_COMMENT_CHAR )
+	if( Util::Contains( CINI_COMMENT_CHARS, text[0] ) )
 	{
 		// Comment line
 		return true;
@@ -575,7 +577,8 @@ bool CiniBody::Parser::ParseSection( String& text )
 	String::size_type close_pos = text.find( CINI_SECTION_CLOSE_CHAR, 1 );
 	if( close_pos == String::npos )
 	{
-		PushError( Util::MakeString( "'%c' is missing, ignore the this line.", CINI_SECTION_CLOSE_CHAR ).c_str() );
+		String s;
+		PushError( (s + "'" + CINI_SECTION_CLOSE_CHAR + "' is missing, ignore the this line.").c_str() );
 		return false;
 	}
 
@@ -599,7 +602,7 @@ bool CiniBody::Parser::ParseEntry( String& text )
 	String::size_type separator_pos = text.find( CINI_ASSIGNMENT_OP );
 	if( separator_pos == String::npos )
 	{
-		PushError( "'=' is missing, ignore the this line." );
+		PushError( "'" CINI_ASSIGNMENT_OP "' is missing, ignore the this line." );
 		return false;
 	}
 
@@ -612,7 +615,7 @@ bool CiniBody::Parser::ParseEntry( String& text )
 	}
 	if( key_name.find_first_of( CINI_KEY_PROHIBIT_CHARS ) != String::npos )
 	{
-		PushError( "Key name includes prohibited character(" CINI_KEY_PROHIBIT_CHARS "), ignore the this line." );
+		PushError( "Key name includes prohibited characters(" CINI_KEY_PROHIBIT_CHARS "), ignore the this line." );
 		return false;
 	}
 
@@ -715,7 +718,8 @@ bool CiniBody::Parser::ParseArray( String& text, ValueVector& array_values )
 		}
 		else
 		{
-			PushError( Util::MakeString( "Could not parsed '%s'.", token.c_str() ).c_str() );
+			String s;
+			PushError( (s + "Could not parsed '" + token + "'.").c_str() );
 		}
 
 		start_pos = end_pos + 1;

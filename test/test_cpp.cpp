@@ -100,7 +100,7 @@ void test_cpp(const char* path)
 		TEST(strcmp(cini.gets("string section", "key4", "ERROR"), "TEXT") == 0);
 		TEST(strcmp(cini.gets("string section", "key5", "ERROR"), "\"TEXT\"") == 0);
 		TEST(strcmp(cini.gets("string section", "key6", "ERROR"), "\"TEXT\" TEXT") == 0);
-		TEST(strcmp(cini.gets("string section", "key7", "ERROR"), "AA,BB,CC;DD,EE,FF,あ,い,う") == 0);
+		TEST(strcmp(cini.gets("string section", "key7", "ERROR"), u8"AA,BB,CC;DD,EE,FF,あ,い,う") == 0);
 
 		TEST(cini.geti("string section", "key1", -999) == -999);
 		TEST(cini.geti("string section", "key2", -999) == -999);

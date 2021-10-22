@@ -103,7 +103,7 @@ void test_c(const char* path)
 		TEST(strcmp(cini_gets(hcini, "string section", "key4", "ERROR"), "TEXT") == 0);
 		TEST(strcmp(cini_gets(hcini, "string section", "key5", "ERROR"), "\"TEXT\"") == 0);
 		TEST(strcmp(cini_gets(hcini, "string section", "key6", "ERROR"), "\"TEXT\" TEXT") == 0);
-		TEST(strcmp(cini_gets(hcini, "string section", "key7", "ERROR"), "AA,BB,CC;DD,EE,FF,あ,い,う") == 0);
+		TEST(strcmp(cini_gets(hcini, "string section", "key7", "ERROR"), u8"AA,BB,CC;DD,EE,FF,あ,い,う") == 0);
 
 		TEST(cini_geti(hcini, "string section", "key1", -999) == -999);
 		TEST(cini_geti(hcini, "string section", "key2", -999) == -999);

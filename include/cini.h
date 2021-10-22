@@ -1,4 +1,4 @@
-//
+﻿//
 // cini.h - Convenient ini parser for C/C++
 // 
 // Copyright (C) 2016 suconbu.

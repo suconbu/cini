@@ -1,4 +1,4 @@
-//
+﻿//
 // main.cpp - Execute the test code for cini
 // 
 // Copyright (C) 2016 suconbu.
@@ -22,27 +22,15 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#include "stdafx.h"
 #include "test.h"
 
-int _tmain(int argc, _TCHAR* argv[])
+int main(int argc, char* argv[])
 {
-#ifdef CINI_WIN32
-	_CrtSetDbgFlag( _CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF );
-#endif //CINI_WIN32
-
 	const char* path = "test.ini";
-
-	long long int start = get_nanosec();
-
 	test_c( path );
 	test_cpp( path );
-
-	print_test_summary( get_nanosec() - start );
-
+	print_test_summary();
 	append_test_result();
-
-	::getchar();
 
 	return 0;
 }

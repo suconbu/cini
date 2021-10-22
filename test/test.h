@@ -1,4 +1,4 @@
-//
+﻿//
 // test.h - Function prototypes for test
 // 
 // Copyright (C) 2016 suconbu.
@@ -27,6 +27,8 @@
 #ifndef _TEST_H_
 #define _TEST_H_
 
+#include <stdio.h>
+
 #define TEST( cond )				print_test_result( (int)(cond), #cond, __LINE__ )
 #define TEST_PRINT( file, ... )		fprintf( file, __VA_ARGS__ )
 
@@ -38,9 +40,8 @@ void test_c( const char* path );
 void test_cpp( const char* path );
 
 void print_test_result( int cond, const char* cond_text, int line );
-void print_test_summary( long long int elapsed_nanosec );
+void print_test_summary();
 void append_test_result();
-long long int get_nanosec();
 
 #ifdef __cplusplus
 }

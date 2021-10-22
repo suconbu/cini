@@ -1,4 +1,4 @@
-//
+﻿//
 // cini.cpp - Implement the APIs
 // 
 // Copyright (C) 2016 suconbu.

@@ -1,6 +1,6 @@
 ﻿//
 // main.cpp - Execute the test code for cini
-// 
+//
 // Copyright (C) 2016 suconbu.
 //
 // This software is provided 'as-is', without any express or implied
@@ -23,15 +23,20 @@
 //
 
 #include "test.h"
+extern "C" {
+#define CINI_IMPLEMENTATION
+#include "cini.h"
+}
 
 int main(int argc, char* argv[])
 {
-	const char* path = "test.ini";
-	test_c( path );
-	test_cpp( path );
-	print_test_summary();
-	append_test_result();
+    (void)argc;
+    (void)argv;
+    const char* path = "test.ini";
+    test_c(path);
+    // test_cpp( path );
+    print_test_summary();
+    append_test_result();
 
-	return 0;
+    return 0;
 }
-

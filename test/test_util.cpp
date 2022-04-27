@@ -1,6 +1,6 @@
 ﻿//
 // test_util.cpp - Utilities for test
-// 
+//
 // Copyright (C) 2016 suconbu.
 //
 // This software is provided 'as-is', without any express or implied
@@ -28,39 +28,37 @@
 int G_TEST_COUNT = 0;
 int G_OK_COUNT = 0;
 
-void print_test_result( int cond, const char* cond_text, int line )
+void print_test_result(int cond, const char* cond_text, int line)
 {
-	G_TEST_COUNT++;
-	if( cond )
-	{
-		TEST_PRINT( stdout, "%4d\t(^-^)\t[%s]\n", G_TEST_COUNT, cond_text );
-		G_OK_COUNT++;
-	}
-	else
-	{
-		TEST_PRINT( stdout, "%4d\t(x_x)\t[%s]\n", G_TEST_COUNT, cond_text );
-	}
+    G_TEST_COUNT++;
+    if (cond) {
+        TEST_PRINT(stdout, "%4d\t(^-^)\t[%s]\n", G_TEST_COUNT, cond_text);
+        G_OK_COUNT++;
+    } else {
+        TEST_PRINT(stdout, "%4d\t(x_x)\t[%s] at %d\n", G_TEST_COUNT, cond_text, line);
+    }
+    fflush(stdout);
 }
 
 void print_test_summary()
 {
-	fprintf( stdout, "----------------------------------------\n" );
-	fprintf( stdout, "count\t(^-^)\t%%\n" );
-	fprintf( stdout, "%d\t%d\t%.01f\n",
-		G_TEST_COUNT,
-		G_OK_COUNT,
-		G_OK_COUNT * 100.F / G_TEST_COUNT );
-	fprintf( stdout, "----------------------------------------\n" );
+    fprintf(stdout, "----------------------------------------\n");
+    fprintf(stdout, "count\t(^-^)\t%%\n");
+    fprintf(stdout, "%d\t%d\t%.01f\n",
+        G_TEST_COUNT,
+        G_OK_COUNT,
+        G_OK_COUNT * 100.F / G_TEST_COUNT);
+    fprintf(stdout, "----------------------------------------\n");
 }
 
 void append_test_result()
 {
-	std::ofstream ofs( "testresult.txt", std::ios_base::app );
+    std::ofstream ofs("testresult.txt", std::ios_base::app);
 
-	if( !ofs.fail() )
-	{
-		ofs
-			<< (G_OK_COUNT * 100 / G_TEST_COUNT) << "%" << "\t"
-			<< G_OK_COUNT << "/" << G_TEST_COUNT << std::endl;
-	}
+    if (!ofs.fail()) {
+        ofs
+            << (G_OK_COUNT * 100 / G_TEST_COUNT) << "%"
+            << "\t"
+            << G_OK_COUNT << "/" << G_TEST_COUNT << std::endl;
+    }
 }

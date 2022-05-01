@@ -5,7 +5,7 @@ project(cini_test)
 set(SOURCES
     ${PROJECT_SOURCE_DIR}/test/main.cpp
     ${PROJECT_SOURCE_DIR}/test/test_c.c
-    # ${PROJECT_SOURCE_DIR}/test/test_cpp.cpp
+    ${PROJECT_SOURCE_DIR}/test/test_cpp.cpp
     ${PROJECT_SOURCE_DIR}/test/test_util.cpp
 )
 

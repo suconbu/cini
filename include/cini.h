@@ -31,6 +31,10 @@
 // API for C
 //
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 typedef void* HCINI;
 
 // Parse ini file and associate it to HCINI handle
@@ -62,6 +66,63 @@ int cini_getcount(HCINI hcini, const char* section, const char* key);
 // Get error information which recorded when parsing ini file
 int cini_geterrorcount(HCINI hcini);
 const char* cini_geterror(HCINI hcini, int index_);
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
+#if defined(__cplusplus)
+
+//
+// API for C++
+//
+
+class Cini {
+public:
+    // Parse ini file and associate it to Cini instance
+    // If the 'section' is not null, the cini parse specific section only
+    Cini(const char* path, const char* section = nullptr) { hcini_ = cini_create_with_section(path, section); }
+    ~Cini() { cini_free(hcini_); }
+
+    // If failed to load the ini file, the function returns true
+    bool isfailed() const { return cini_isfailed(hcini_) ? true : false; }
+
+    // Get the value of indicated section and key
+    // The function returns default value if could not find the entry or the value type was mismatch
+    int geti(const char* section, const char* key, int idefault = 0) const { return cini_geti(hcini_, section, key, idefault); }
+    float getf(const char* section, const char* key, float fdefault = 0.0F) const { return cini_getf(hcini_, section, key, fdefault); }
+    const char* gets(const char* section, const char* key, const char* sdefault = "") const { return cini_gets(hcini_, section, key, sdefault); }
+
+    // Array accessors
+    int getai(const char* section, const char* key, int index_, int idefault = 0) const { return cini_getai(hcini_, section, key, index_, idefault); }
+    float getaf(const char* section, const char* key, int index_, float fdefault = 0.0F) const { return cini_getaf(hcini_, section, key, index_, fdefault); }
+    const char* getas(const char* section, const char* key, int index_, const char* sdefault = "") const { return cini_getas(hcini_, section, key, index_, sdefault); }
+
+    // Get number of array elements
+    int getcount(const char* section, const char* key) const { return cini_getcount(hcini_, section, key); }
+
+    // Get error information which recorded when parsing ini file
+    //
+    // Usage example:
+    //
+    //   error_count = cini.geterrorcount();
+    //   for( i = 0; i < error_count; i++ )
+    //   {
+    //       printf( "%s\n", cini.geterror( i ) );
+    //   }
+    //
+    int geterrorcount() const { return cini_geterrorcount(hcini_); }
+    const char* geterror(int index_) const { return cini_geterror(hcini_, index_); }
+
+private:
+    HCINI hcini_;
+
+    // Non-copiable
+    Cini(const Cini&);
+    Cini& operator=(const Cini&);
+};
+
+#endif // __cplusplus
 
 #if defined(CINI_IMPLEMENTATION)
 

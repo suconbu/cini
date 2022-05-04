@@ -199,9 +199,9 @@ typedef struct {
     int good;
 } CINI_IN_HANDLE;
 
-void* cini_in_allocate(CINI_IN_HANDLE* cini, size_t size);
+static void* cini_in_allocate(CINI_IN_HANDLE* cini, size_t size);
 
-FILE* cini_in_fopen(const char* filename, const char* mode)
+static FILE* cini_in_fopen(const char* filename, const char* mode)
 {
     FILE* file = NULL;
 #if defined(_MSC_VER) && _MSC_VER >= 1400
@@ -212,17 +212,17 @@ FILE* cini_in_fopen(const char* filename, const char* mode)
     return file;
 }
 
-int cini_in_isspace(char c)
+static int cini_in_isspace(char c)
 {
     return isspace((unsigned char)c);
 }
 
-const char* cini_in_skip_bom(const char* str)
+static const char* cini_in_skip_bom(const char* str)
 {
     return ((unsigned char)str[0] == 0xEFu && (unsigned char)str[1] == 0xBBu && (unsigned char)str[2] == 0xBFu) ? (str + 3) : str;
 }
 
-CINI_IN_STRING cini_in_trim_left(CINI_IN_STRING* str)
+static CINI_IN_STRING cini_in_trim_left(CINI_IN_STRING* str)
 {
     CINI_IN_STRING s = {};
     if (str != NULL && str->begin != NULL && str->end != NULL) {
@@ -231,7 +231,7 @@ CINI_IN_STRING cini_in_trim_left(CINI_IN_STRING* str)
     return s;
 }
 
-CINI_IN_STRING cini_in_trim_right(CINI_IN_STRING* str)
+static CINI_IN_STRING cini_in_trim_right(CINI_IN_STRING* str)
 {
     CINI_IN_STRING s = {};
     if (str != NULL && str->begin != NULL && str->end != NULL) {
@@ -241,7 +241,7 @@ CINI_IN_STRING cini_in_trim_right(CINI_IN_STRING* str)
     return s;
 }
 
-CINI_IN_STRING cini_in_string_make(const char* source)
+static CINI_IN_STRING cini_in_string_make(const char* source)
 {
     CINI_IN_STRING str = {};
     if (source != NULL) {
@@ -251,17 +251,17 @@ CINI_IN_STRING cini_in_string_make(const char* source)
     return str;
 }
 
-size_t cini_in_string_len(CINI_IN_STRING* str)
+static size_t cini_in_string_len(CINI_IN_STRING* str)
 {
     return (str != NULL && str->begin != NULL && str->end != NULL && (str->begin <= str->end)) ? (str->end - str->begin) : 0;
 }
 
-int cini_in_string_compare(CINI_IN_STRING* str1, const char* str2)
+static int cini_in_string_compare(CINI_IN_STRING* str1, const char* str2)
 {
     return strncmp(str1->begin, str2, cini_in_string_len(str1));
 }
 
-int cini_in_list_count(const CINI_IN_LIST* list)
+static int cini_in_list_count(const CINI_IN_LIST* list)
 {
     int count = 0;
     CINI_IN_LIST_NODE* node = (list != NULL) ? list->front : NULL;
@@ -272,7 +272,7 @@ int cini_in_list_count(const CINI_IN_LIST* list)
     return count;
 }
 
-CINI_IN_LIST_NODE* cini_in_list_push_back(CINI_IN_HANDLE* cini, CINI_IN_LIST* list, size_t size)
+static CINI_IN_LIST_NODE* cini_in_list_push_back(CINI_IN_HANDLE* cini, CINI_IN_LIST* list, size_t size)
 {
     CINI_IN_LIST_NODE* node = (CINI_IN_LIST_NODE*)cini_in_allocate(cini, size);
     if (node != NULL) {
@@ -287,7 +287,7 @@ CINI_IN_LIST_NODE* cini_in_list_push_back(CINI_IN_HANDLE* cini, CINI_IN_LIST* li
     return node;
 }
 
-CINI_IN_LIST_NODE* cini_in_list_at(const CINI_IN_LIST* list, int index_)
+static CINI_IN_LIST_NODE* cini_in_list_at(const CINI_IN_LIST* list, int index_)
 {
     CINI_IN_LIST_NODE* found_node = NULL;
     int i = 0;
@@ -300,7 +300,7 @@ CINI_IN_LIST_NODE* cini_in_list_at(const CINI_IN_LIST* list, int index_)
     return found_node;
 }
 
-CINI_IN_LIST_NODE* cini_in_list_find(const CINI_IN_LIST* list, int (*match_func)(CINI_IN_LIST_NODE*, const void*), const void* data)
+static CINI_IN_LIST_NODE* cini_in_list_find(const CINI_IN_LIST* list, int (*match_func)(CINI_IN_LIST_NODE*, const void*), const void* data)
 {
     CINI_IN_LIST_NODE* found_node = NULL;
     for (CINI_IN_LIST_NODE* node = list->front; node != NULL; node = node->next) {
@@ -312,7 +312,7 @@ CINI_IN_LIST_NODE* cini_in_list_find(const CINI_IN_LIST* list, int (*match_func)
     return found_node;
 }
 
-void cini_in_error(CINI_IN_HANDLE* cini)
+static void cini_in_error(CINI_IN_HANDLE* cini)
 {
     snprintf(cini->error_buffer, sizeof(cini->error_buffer), "at line:%d", cini->line_no);
     size_t len = strlen(cini->error_buffer);
@@ -326,7 +326,7 @@ void cini_in_error(CINI_IN_HANDLE* cini)
     return;
 }
 
-void* cini_in_allocate(CINI_IN_HANDLE* cini, size_t size)
+static void* cini_in_allocate(CINI_IN_HANDLE* cini, size_t size)
 {
     char* ptr = NULL;
     if (size <= CINI_MEMORY_BLOCK_SIZE) {
@@ -364,7 +364,7 @@ void* cini_in_allocate(CINI_IN_HANDLE* cini, size_t size)
     return ptr;
 }
 
-CINI_IN_VALUE* cini_in_add_value_single(CINI_IN_HANDLE* cini, CINI_IN_LIST* value_list, CINI_IN_STRING* source)
+static CINI_IN_VALUE* cini_in_add_value_single(CINI_IN_HANDLE* cini, CINI_IN_LIST* value_list, CINI_IN_STRING* source)
 {
     CINI_IN_STRING str = cini_in_trim_left(source);
     str = cini_in_trim_right(&str);
@@ -412,7 +412,7 @@ CINI_IN_VALUE* cini_in_add_value_single(CINI_IN_HANDLE* cini, CINI_IN_LIST* valu
     return value;
 }
 
-void cini_in_add_value_array(CINI_IN_HANDLE* cini, CINI_IN_LIST* value_list, CINI_IN_STRING* source)
+static void cini_in_add_value_array(CINI_IN_HANDLE* cini, CINI_IN_LIST* value_list, CINI_IN_STRING* source)
 {
     const char* str_ptr = source->begin;
     while (str_ptr <= source->end) {
@@ -463,14 +463,14 @@ void cini_in_add_value_array(CINI_IN_HANDLE* cini, CINI_IN_LIST* value_list, CIN
     return;
 }
 
-void cini_in_add_value(CINI_IN_HANDLE* cini, CINI_IN_LIST* value_list, CINI_IN_STRING* source)
+static void cini_in_add_value(CINI_IN_HANDLE* cini, CINI_IN_LIST* value_list, CINI_IN_STRING* source)
 {
     cini_in_add_value_single(cini, value_list, source);
     cini_in_add_value_array(cini, value_list, source);
     return;
 }
 
-CINI_IN_ENTRY* cini_in_add_entry(CINI_IN_HANDLE* cini, CINI_IN_LIST* entry_list, CINI_IN_STRING* name)
+static CINI_IN_ENTRY* cini_in_add_entry(CINI_IN_HANDLE* cini, CINI_IN_LIST* entry_list, CINI_IN_STRING* name)
 {
     size_t len = cini_in_string_len(name);
     size_t size = sizeof(CINI_IN_ENTRY) + len + 1;
@@ -483,7 +483,7 @@ CINI_IN_ENTRY* cini_in_add_entry(CINI_IN_HANDLE* cini, CINI_IN_LIST* entry_list,
     return entry;
 }
 
-CINI_IN_SECTION* cini_in_add_section(CINI_IN_HANDLE* cini, CINI_IN_LIST* section_list, CINI_IN_STRING* name)
+static CINI_IN_SECTION* cini_in_add_section(CINI_IN_HANDLE* cini, CINI_IN_LIST* section_list, CINI_IN_STRING* name)
 {
     size_t len = cini_in_string_len(name);
     size_t size = sizeof(CINI_IN_SECTION) + len + 1;
@@ -496,17 +496,17 @@ CINI_IN_SECTION* cini_in_add_section(CINI_IN_HANDLE* cini, CINI_IN_LIST* section
     return section;
 }
 
-int cini_in_match_entry(CINI_IN_LIST_NODE* node, const void* data)
+static int cini_in_match_entry(CINI_IN_LIST_NODE* node, const void* data)
 {
     return cini_in_string_compare((CINI_IN_STRING*)data, ((CINI_IN_ENTRY*)node)->name) == 0;
 }
 
-int cini_in_match_section(CINI_IN_LIST_NODE* node, const void* data)
+static int cini_in_match_section(CINI_IN_LIST_NODE* node, const void* data)
 {
     return cini_in_string_compare((CINI_IN_STRING*)data, ((CINI_IN_SECTION*)node)->name) == 0;
 }
 
-CINI_IN_ENTRY* cini_in_get_entry(CINI_IN_HANDLE* cini, const char* section_name, const char* key_name)
+static CINI_IN_ENTRY* cini_in_get_entry(CINI_IN_HANDLE* cini, const char* section_name, const char* key_name)
 {
     CINI_IN_STRING section_name_str = cini_in_string_make(section_name);
     CINI_IN_STRING key_name_str = cini_in_string_make(key_name);
@@ -514,13 +514,13 @@ CINI_IN_ENTRY* cini_in_get_entry(CINI_IN_HANDLE* cini, const char* section_name,
     return (section) ? (CINI_IN_ENTRY*)cini_in_list_find(&section->entry_list, cini_in_match_entry, &key_name_str) : NULL;
 }
 
-CINI_IN_VALUE* cini_in_get_value(CINI_IN_HANDLE* cini, const char* section_name, const char* key_name, int index_)
+static CINI_IN_VALUE* cini_in_get_value(CINI_IN_HANDLE* cini, const char* section_name, const char* key_name, int index_)
 {
     CINI_IN_ENTRY* entry = cini_in_get_entry(cini, section_name, key_name);
     return (entry) ? (CINI_IN_VALUE*)cini_in_list_at(&entry->value_list, index_) : NULL;
 }
 
-void cini_in_parse(CINI_IN_HANDLE* cini, FILE* file)
+static void cini_in_parse(CINI_IN_HANDLE* cini, FILE* file)
 {
     // Default section
     CINI_IN_STRING empty_str = cini_in_string_make("");
@@ -578,7 +578,7 @@ void cini_in_parse(CINI_IN_HANDLE* cini, FILE* file)
 
 HCINI cini_create(const char* path)
 {
-    return cini_create_with_section(path, 0);
+    return cini_create_with_section(path, NULL);
 }
 
 HCINI cini_create_with_section(const char* path, const char* section)

@@ -47,7 +47,7 @@ HCINI cini_create_with_section(const char* path, const char* section);
 void cini_free(HCINI hcini);
 
 // If failed to load the ini file, the function returns non zero
-int cini_isfailed(HCINI hcini);
+int cini_isgood(HCINI hcini);
 
 // Get the value of indicated section and key
 // The function returns default value if could not find the entry or the value type was mismatch
@@ -84,8 +84,8 @@ public:
     Cini(const char* path, const char* section = nullptr) { hcini_ = cini_create_with_section(path, section); }
     ~Cini() { cini_free(hcini_); }
 
-    // If failed to load the ini file, the function returns true
-    bool isfailed() const { return cini_isfailed(hcini_) ? true : false; }
+    // If failed to load the ini file, the function returns false
+    operator bool() const { return cini_isgood(hcini_) ? true : false; }
 
     // Get the value of indicated section and key
     // The function returns default value if could not find the entry or the value type was mismatch
@@ -102,15 +102,6 @@ public:
     int getcount(const char* section, const char* key) const { return cini_getcount(hcini_, section, key); }
 
     // Get error information which recorded when parsing ini file
-    //
-    // Usage example:
-    //
-    //   error_count = cini.geterrorcount();
-    //   for( i = 0; i < error_count; i++ )
-    //   {
-    //       printf( "%s\n", cini.geterror( i ) );
-    //   }
-    //
     int geterrorcount() const { return cini_geterrorcount(hcini_); }
     const char* geterror(int index_) const { return cini_geterror(hcini_, index_); }
 
@@ -222,43 +213,20 @@ static const char* cini_in_skip_bom(const char* str)
     return ((unsigned char)str[0] == 0xEFu && (unsigned char)str[1] == 0xBBu && (unsigned char)str[2] == 0xBFu) ? (str + 3) : str;
 }
 
-static CINI_IN_STRING cini_in_trim_left(CINI_IN_STRING* str)
-{
-    CINI_IN_STRING s = {};
-    if (str != NULL && str->begin != NULL && str->end != NULL) {
-        for (s.begin = str->begin, s.end = str->end; cini_in_isspace(*s.begin); ++s.begin) { }
-    }
-    return s;
-}
-
-static CINI_IN_STRING cini_in_trim_right(CINI_IN_STRING* str)
-{
-    CINI_IN_STRING s = {};
-    if (str != NULL && str->begin != NULL && str->end != NULL) {
-        for (s.begin = str->begin, s.end = str->end - 1; str->begin <= s.end && cini_in_isspace(*s.end); --s.end) { }
-        ++s.end;
-    }
-    return s;
-}
-
-static CINI_IN_STRING cini_in_string_make(const char* source)
-{
-    CINI_IN_STRING str = {};
-    if (source != NULL) {
-        str.begin = source;
-        str.end = source + strlen(source);
-    }
-    return str;
-}
-
 static size_t cini_in_string_len(CINI_IN_STRING* str)
 {
     return (str != NULL && str->begin != NULL && str->end != NULL && (str->begin <= str->end)) ? (str->end - str->begin) : 0;
 }
 
-static int cini_in_string_compare(CINI_IN_STRING* str1, const char* str2)
+static CINI_IN_STRING cini_in_string_trim(CINI_IN_STRING* str)
 {
-    return strncmp(str1->begin, str2, cini_in_string_len(str1));
+    CINI_IN_STRING s = {};
+    if (str != NULL && str->begin != NULL && str->end != NULL) {
+        for (s.begin = str->begin; s.begin < str->end && cini_in_isspace(*s.begin); ++s.begin) { }
+        for (s.end = str->end - 1; str->begin <= s.end && cini_in_isspace(*s.end); --s.end) { }
+        ++s.end;
+    }
+    return s;
 }
 
 static int cini_in_list_count(const CINI_IN_LIST* list)
@@ -314,14 +282,15 @@ static CINI_IN_LIST_NODE* cini_in_list_find(const CINI_IN_LIST* list, int (*matc
 
 static void cini_in_error(CINI_IN_HANDLE* cini)
 {
-    snprintf(cini->error_buffer, sizeof(cini->error_buffer), "at line:%d", cini->line_no);
-    size_t len = strlen(cini->error_buffer);
-    size_t size = sizeof(CINI_IN_ERROR) + len + 1;
-    CINI_IN_ERROR* error = (CINI_IN_ERROR*)cini_in_list_push_back(cini, &cini->error_list, size);
-    if (error != NULL) {
-        char* s = (char*)(error + 1);
-        memcpy(s, cini->error_buffer, len);
-        error->message = s;
+    int len = snprintf(cini->error_buffer, sizeof(cini->error_buffer), "at line:%d", cini->line_no);
+    if (0 < len) {
+        size_t size = sizeof(CINI_IN_ERROR) + len + 1;
+        CINI_IN_ERROR* error = (CINI_IN_ERROR*)cini_in_list_push_back(cini, &cini->error_list, size);
+        if (error != NULL) {
+            char* s = (char*)(error + 1);
+            memcpy(s, cini->error_buffer, len);
+            error->message = s;
+        }
     }
     return;
 }
@@ -347,8 +316,6 @@ static void* cini_in_allocate(CINI_IN_HANDLE* cini, size_t size)
                 cini->memory_list.back = new_node;
                 memory = (CINI_IN_MEMORY*)new_node;
                 memory->ptr = memory->block;
-            } else {
-                cini_in_error(cini);
             }
         }
 
@@ -366,8 +333,7 @@ static void* cini_in_allocate(CINI_IN_HANDLE* cini, size_t size)
 
 static CINI_IN_VALUE* cini_in_add_value_single(CINI_IN_HANDLE* cini, CINI_IN_LIST* value_list, CINI_IN_STRING* source)
 {
-    CINI_IN_STRING str = cini_in_trim_left(source);
-    str = cini_in_trim_right(&str);
+    CINI_IN_STRING str = cini_in_string_trim(source);
     int has_numeric = 0;
     double numeric = 0.0;
     if (*str.begin != 0 && strchr("+-#0123456789.", *str.begin) != NULL) {
@@ -498,18 +464,18 @@ static CINI_IN_SECTION* cini_in_add_section(CINI_IN_HANDLE* cini, CINI_IN_LIST* 
 
 static int cini_in_match_entry(CINI_IN_LIST_NODE* node, const void* data)
 {
-    return cini_in_string_compare((CINI_IN_STRING*)data, ((CINI_IN_ENTRY*)node)->name) == 0;
+    return strncmp(((CINI_IN_STRING*)data)->begin, ((CINI_IN_ENTRY*)node)->name, cini_in_string_len((CINI_IN_STRING*)data)) == 0;
 }
 
 static int cini_in_match_section(CINI_IN_LIST_NODE* node, const void* data)
 {
-    return cini_in_string_compare((CINI_IN_STRING*)data, ((CINI_IN_SECTION*)node)->name) == 0;
+    return strncmp(((CINI_IN_STRING*)data)->begin, ((CINI_IN_SECTION*)node)->name, cini_in_string_len((CINI_IN_STRING*)data)) == 0;
 }
 
 static CINI_IN_ENTRY* cini_in_get_entry(CINI_IN_HANDLE* cini, const char* section_name, const char* key_name)
 {
-    CINI_IN_STRING section_name_str = cini_in_string_make(section_name);
-    CINI_IN_STRING key_name_str = cini_in_string_make(key_name);
+    CINI_IN_STRING section_name_str = { section_name, section_name + strlen(section_name) };
+    CINI_IN_STRING key_name_str = { key_name, key_name + strlen(key_name) };
     CINI_IN_SECTION* section = (CINI_IN_SECTION*)cini_in_list_find(&cini->section_list, cini_in_match_section, &section_name_str);
     return (section) ? (CINI_IN_ENTRY*)cini_in_list_find(&section->entry_list, cini_in_match_entry, &key_name_str) : NULL;
 }
@@ -523,21 +489,21 @@ static CINI_IN_VALUE* cini_in_get_value(CINI_IN_HANDLE* cini, const char* sectio
 static void cini_in_parse(CINI_IN_HANDLE* cini, FILE* file)
 {
     // Default section
-    CINI_IN_STRING empty_str = cini_in_string_make("");
-    cini->current_section = cini_in_add_section(cini, &cini->section_list, &empty_str);
+    const char* default_name = "";
+    CINI_IN_STRING default_name_str = { default_name, default_name + strlen(default_name) };
+    cini->current_section = cini_in_add_section(cini, &cini->section_list, &default_name_str);
 
     while (fgets(cini->line_buffer, sizeof(cini->line_buffer), file) != NULL) {
         ++cini->line_no;
-        CINI_IN_STRING line = cini_in_string_make(cini->line_buffer);
-        size_t line_len = cini_in_string_len(&line);
+        size_t line_len = strlen(cini->line_buffer);
+        CINI_IN_STRING line = { cini->line_buffer, cini->line_buffer + line_len };
         if (cini->line_no == 1 && 3 <= line_len) {
             line.begin = cini_in_skip_bom(line.begin);
         }
-        line = cini_in_trim_left(&line);
+        line = cini_in_string_trim(&line);
         if (strchr(CINI_IN_COMMENT_CHARS, *line.begin) != NULL) {
             continue;
         }
-        line = cini_in_trim_right(&line);
         if (*line.begin == CINI_IN_SECTION_BRACKET_OPEN) {
             ++line.begin;
             CINI_IN_STRING section_name = { line.begin, strchr(line.begin, CINI_IN_SECTION_BRACKET_CLOSE) };
@@ -555,7 +521,7 @@ static void cini_in_parse(CINI_IN_HANDLE* cini, FILE* file)
             if (cini->current_section != NULL && (cini->target_section_name == NULL || strcmp(cini->current_section->name, cini->target_section_name) == 0)) {
                 CINI_IN_STRING key_name = { line.begin, strchr(line.begin, CINI_IN_ASSIGNMENT) };
                 CINI_IN_STRING value_str = { key_name.end + 1, line.end };
-                key_name = cini_in_trim_right(&key_name);
+                key_name = cini_in_string_trim(&key_name);
                 if (cini_in_string_len(&key_name) == 0) {
                     cini_in_error(cini);
                     continue;
@@ -612,10 +578,10 @@ void cini_free(HCINI hcini)
     }
 }
 
-int cini_isfailed(HCINI hcini)
+int cini_isgood(HCINI hcini)
 {
     CINI_IN_HANDLE* cini = (CINI_IN_HANDLE*)hcini;
-    return (cini != NULL && cini->good) ? 0 : 1;
+    return (cini != NULL && cini->good) ? 1 : 0;
 }
 
 int cini_geti(HCINI hcini, const char* section, const char* key, int idefault)

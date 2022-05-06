@@ -109,6 +109,7 @@ void test_c(const char* path)
         TEST(strcmp(cini_gets(hcini, "string section", "key5", "ERROR"), "\"TEXT\"") == 0);
         TEST(strcmp(cini_gets(hcini, "string section", "key6", "ERROR"), "\"TEXT\" TEXT") == 0);
         TEST(strcmp(cini_gets(hcini, "string section", "key7", "ERROR"), u8"AA,BB,CC;DD,EE,FF,あ,い,う") == 0);
+        TEST(strcmp(cini_gets(hcini, "string section", "key8", "ERROR"), "\\t\\r\\n") == 0);
 
         TEST(cini_geti(hcini, "string section", "key1", -999) == -999);
         TEST(cini_geti(hcini, "string section", "key2", -999) == -999);
@@ -117,6 +118,7 @@ void test_c(const char* path)
         TEST(cini_geti(hcini, "string section", "key5", -999) == -999);
         TEST(cini_geti(hcini, "string section", "key6", -999) == -999);
         TEST(cini_geti(hcini, "string section", "key7", -999) == -999);
+        TEST(cini_geti(hcini, "string section", "key8", -999) == -999);
 
         TEST(cini_getcount(hcini, "string section", "key1") == 1);
         TEST(cini_getcount(hcini, "string section", "key2") == 1);
@@ -125,6 +127,7 @@ void test_c(const char* path)
         TEST(cini_getcount(hcini, "string section", "key5") == 1);
         TEST(cini_getcount(hcini, "string section", "key6") == 1);
         TEST(cini_getcount(hcini, "string section", "key7") == 1);
+        TEST(cini_getcount(hcini, "string section", "key8") == 1);
         cini_free(hcini);
     }
     // array section
@@ -213,13 +216,13 @@ void test_c(const char* path)
     {
         HCINI hcini = cini_create(path);
         TEST(hcini != NULL);
-        TEST(cini_isfailed(hcini) == 0);
+        TEST(cini_isgood(hcini) != 0);
         cini_free(hcini);
     }
     {
         HCINI hcini = cini_create("alkjgbak4nubiato");
         TEST(hcini != NULL);
-        TEST(cini_isfailed(hcini) != 0);
+        TEST(cini_isgood(hcini) == 0);
         cini_free(hcini);
     }
 

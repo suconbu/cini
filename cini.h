@@ -202,7 +202,7 @@ static size_t cini_in_string_len(CINI_IN_STRING* str)
 
 static CINI_IN_STRING cini_in_string_trim(CINI_IN_STRING* str)
 {
-    CINI_IN_STRING s = {};
+    CINI_IN_STRING s = { NULL, NULL };
     if (str != NULL && str->begin != NULL && str->end != NULL) {
         for (s.begin = str->begin; s.begin < str->end && cini_in_isspace(*s.begin); ++s.begin) { }
         for (s.end = str->end - 1; str->begin <= s.end && cini_in_isspace(*s.end); --s.end) { }
@@ -520,7 +520,7 @@ static void cini_in_parse(CINI_IN_HANDLE* cini, FILE* file)
 
 HCINI cini_in_create_handle(const char* path, const char* section)
 {
-    CINI_IN_LIST memory_list = {};
+    CINI_IN_LIST memory_list = { NULL, NULL };
     CINI_IN_HANDLE* cini = (CINI_IN_HANDLE*)cini_in_allocate(&memory_list, sizeof(CINI_IN_HANDLE));
     if (cini != NULL) {
         cini->memory_list = memory_list;

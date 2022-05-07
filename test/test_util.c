@@ -1,5 +1,5 @@
 ﻿//
-// main.cpp - Execute the test code for cini
+// test_util.cpp - Utilities for test
 //
 // Copyright (C) 2016 suconbu.
 //
@@ -23,20 +23,34 @@
 //
 
 #include "test.h"
-extern "C" {
-#define CINI_IMPLEMENTATION
-#include "cini.h"
+
+int G_TEST_COUNT = 0;
+int G_OK_COUNT = 0;
+
+void add_test_result(int cond, const char* cond_text, int line)
+{
+    G_TEST_COUNT++;
+    if (cond) {
+        TEST_PRINT(stdout, "%4d\t(^-^)\t[%s]\n", G_TEST_COUNT, cond_text);
+        G_OK_COUNT++;
+    } else {
+        TEST_PRINT(stdout, "%4d\t(x_x)\t[%s] at %d\n", G_TEST_COUNT, cond_text, line);
+    }
+    fflush(stdout);
 }
 
-int main(int argc, char* argv[])
+void print_test_summary()
 {
-    (void)argc;
-    (void)argv;
-    const char* path = "test.ini";
-    test_c(path);
-    test_cpp(path);
-    print_test_summary();
-    append_test_result();
+    fprintf(stdout, "----------------------------------------\n");
+    fprintf(stdout, "count\t(^-^)\t%%\n");
+    fprintf(stdout, "%d\t%d\t%.01f\n",
+        G_TEST_COUNT,
+        G_OK_COUNT,
+        G_OK_COUNT * 100.F / G_TEST_COUNT);
+    fprintf(stdout, "----------------------------------------\n");
+}
 
-    return 0;
+int get_test_result()
+{
+    return (G_OK_COUNT < G_TEST_COUNT) ? 1 : 0;
 }

@@ -1,5 +1,5 @@
 ﻿//
-// test.h - Function prototypes for test
+// main.cpp - Execute the test code for cini
 //
 // Copyright (C) 2016 suconbu.
 //
@@ -22,29 +22,18 @@
 // 3. This notice may not be removed or altered from any source distribution.
 //
 
-#pragma once
+#include "test.h"
+#define CINI_IMPLEMENTATION
+#include "cini.h"
 
-#ifndef CINI_TEST_H_
-#define CINI_TEST_H_
+int main(int argc, char* argv[])
+{
+    (void)argc;
+    (void)argv;
+    const char* path = "test.ini";
+    test_c(path);
+    test_cpp(path);
+    print_test_summary();
 
-#include <stdio.h>
-
-#define TEST(cond)            add_test_result((int)(cond), #cond, __LINE__)
-#define TEST_PRINT(file, ...) fprintf(file, __VA_ARGS__)
-
-#ifdef __cplusplus
-extern "C" {
-#endif //__cplusplus
-
-void test_c(const char* path);
-void test_cpp(const char* path);
-
-void add_test_result(int cond, const char* cond_text, int line);
-void print_test_summary();
-int get_test_result();
-
-#ifdef __cplusplus
+    return get_test_result();
 }
-#endif //__cplusplus
-
-#endif // CINI_TEST_H_

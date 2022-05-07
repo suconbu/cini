@@ -1,15 +1,22 @@
 cmake_minimum_required(VERSION 3.8)
 
 project(cini_test)
+enable_testing()
 
 set(SOURCES
-    ${PROJECT_SOURCE_DIR}/test/main.cpp
+    ${PROJECT_SOURCE_DIR}/test/test.c
     ${PROJECT_SOURCE_DIR}/test/test_c.c
     ${PROJECT_SOURCE_DIR}/test/test_cpp.cpp
-    ${PROJECT_SOURCE_DIR}/test/test_util.cpp
+    ${PROJECT_SOURCE_DIR}/test/test_util.c
 )
 
 add_executable(${PROJECT_NAME} ${SOURCES})
+
+add_test(
+    NAME ${PROJECT_NAME}
+    COMMAND ${PROJECT_NAME}
+    WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}/test
+)
 
 target_include_directories(${PROJECT_NAME}
     PRIVATE

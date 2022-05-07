@@ -1,6 +1,6 @@
 # cini - single header ini file parser for C/C++
 
-Licensed under MIT License.
+Licensed under [MIT License](https://opensource.org/licenses/MIT).
 
 # Version
 
@@ -56,7 +56,10 @@ void sample_for_cpp()
 
 # Data types
 
-The cini can read value as string or numeric.
+The cini supports the following data-types.
+
+* String
+* Numeric
 
 ## Data types - String
 
@@ -146,3 +149,9 @@ cini_getcount(hcini, "Array example", "array2");            // 3
 cini_getas(hcini, "Array example", "array2", 1, "default")  // "Two,Three"
 cini_gets(hcini, "Array example", "array2", "default")      // "One,"Two,Three",'Four,Five'"
 ```
+
+# Limitations
+
+| Item                                                        | Value    | Definition            |
+| ----------------------------------------------------------- | -------- | --------------------- |
+| Maximum number of bytes per line (Including null character) | 512bytes | CINI_LINE_BUFFER_SIZE |

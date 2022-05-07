@@ -102,16 +102,16 @@ private:
 #include <stdlib.h>
 #include <string.h>
 
-#define CINI_MEMORY_BLOCK_SIZE 2048
+#define CINI_MEMORY_CHUNK_SIZE 2048
 #define CINI_LINE_BUFFER_SIZE  512
 #define CINI_ERROR_BUFFER_SIZE 128
 
-#define CINI_IN_QUOTE_CHARS           "'\""
-#define CINI_IN_COMMENT_CHARS         ";#"
-#define CINI_IN_VALUE_SEPARATOR       ','
-#define CINI_IN_ASSIGNMENT            '='
-#define CINI_IN_SECTION_BRACKET_OPEN  '['
-#define CINI_IN_SECTION_BRACKET_CLOSE ']'
+#define CINI_QUOTE_CHARS           "'\""
+#define CINI_COMMENT_CHARS         ";#"
+#define CINI_ARRAY_SEPARATOR       ','
+#define CINI_ASSIGNMENT            '='
+#define CINI_SECTION_BRACKET_OPEN  '['
+#define CINI_SECTION_BRACKET_CLOSE ']'
 
 typedef struct {
     const char* begin;
@@ -124,7 +124,7 @@ typedef struct CINI_IN_LIST_NODE_ {
 
 typedef struct {
     CINI_IN_LIST_NODE node;
-    char block[CINI_MEMORY_BLOCK_SIZE];
+    char chunk[CINI_MEMORY_CHUNK_SIZE];
     char* ptr;
 } CINI_IN_MEMORY;
 
@@ -168,7 +168,7 @@ typedef struct {
     int good;
 } CINI_IN_HANDLE;
 
-static void* cini_in_allocate(CINI_IN_HANDLE* cini, size_t size);
+static void* cini_in_allocate(CINI_IN_LIST* memory_list, size_t size);
 
 static FILE* cini_in_fopen(const char* filename, const char* mode)
 {
@@ -179,6 +179,16 @@ static FILE* cini_in_fopen(const char* filename, const char* mode)
     file = fopen(filename, mode);
 #endif
     return file;
+}
+
+static void* cini_in_malloc(size_t size)
+{
+    return malloc(size);
+}
+
+static void cini_in_free(void* ptr)
+{
+    free(ptr);
 }
 
 static int cini_in_isspace(char c)
@@ -220,7 +230,7 @@ static int cini_in_list_count(const CINI_IN_LIST* list)
 
 static CINI_IN_LIST_NODE* cini_in_list_push_back(CINI_IN_HANDLE* cini, CINI_IN_LIST* list, size_t size)
 {
-    CINI_IN_LIST_NODE* node = (CINI_IN_LIST_NODE*)cini_in_allocate(cini, size);
+    CINI_IN_LIST_NODE* node = (CINI_IN_LIST_NODE*)cini_in_allocate(&cini->memory_list, size);
     if (node != NULL) {
         memset(node, 0, size);
         if (list->front == NULL) {
@@ -273,38 +283,34 @@ static void cini_in_error(CINI_IN_HANDLE* cini)
     return;
 }
 
-static void* cini_in_allocate(CINI_IN_HANDLE* cini, size_t size)
+static void* cini_in_allocate(CINI_IN_LIST* memory_list, size_t size)
 {
     char* ptr = NULL;
-    if (size <= CINI_MEMORY_BLOCK_SIZE) {
-        CINI_IN_MEMORY* memory = (CINI_IN_MEMORY*)cini->memory_list.back;
+    if (memory_list != NULL && size <= CINI_MEMORY_CHUNK_SIZE) {
+        CINI_IN_MEMORY* memory = (CINI_IN_MEMORY*)memory_list->back;
         size_t remain = 0;
         if (memory != NULL) {
-            remain = CINI_MEMORY_BLOCK_SIZE - (memory->ptr - memory->block);
+            remain = CINI_MEMORY_CHUNK_SIZE - (memory->ptr - memory->chunk);
         }
         if (remain < size) {
-            CINI_IN_LIST_NODE* new_node = (CINI_IN_LIST_NODE*)malloc(sizeof(CINI_IN_MEMORY));
+            CINI_IN_LIST_NODE* new_node = (CINI_IN_LIST_NODE*)cini_in_malloc(sizeof(CINI_IN_MEMORY));
             if (new_node != NULL) {
                 memset(new_node, 0, sizeof(CINI_IN_MEMORY));
-                if (cini->memory_list.front == NULL) {
-                    cini->memory_list.front = new_node;
+                if (memory_list->front == NULL) {
+                    memory_list->front = new_node;
                 } else {
-                    cini->memory_list.back->next = new_node;
+                    memory_list->back->next = new_node;
                 }
-                cini->memory_list.back = new_node;
+                memory_list->back = new_node;
                 memory = (CINI_IN_MEMORY*)new_node;
-                memory->ptr = memory->block;
+                memory->ptr = memory->chunk;
             }
         }
 
         if (memory != NULL) {
             ptr = memory->ptr;
             memory->ptr += size;
-        } else {
-            cini_in_error(cini);
         }
-    } else {
-        cini_in_error(cini);
     }
     return ptr;
 }
@@ -337,7 +343,7 @@ static CINI_IN_VALUE* cini_in_add_value_single(CINI_IN_HANDLE* cini, CINI_IN_LIS
 
     if (!has_numeric) {
         // Remove the quote mark of both ends
-        if (2 <= cini_in_string_len(&str) && strchr(CINI_IN_QUOTE_CHARS, *str.begin) != NULL && *str.begin == *(str.end - 1)) {
+        if (2 <= cini_in_string_len(&str) && strchr(CINI_QUOTE_CHARS, *str.begin) != NULL && *str.begin == *(str.end - 1)) {
             str.begin += 1;
             str.end -= 1;
         }
@@ -368,7 +374,7 @@ static void cini_in_add_value_array(CINI_IN_HANDLE* cini, CINI_IN_LIST* value_li
         CINI_IN_STRING value_str = { str_ptr, source->end };
         for (; str_ptr < source->end; ++str_ptr) {
             if (!cini_in_isspace(*str_ptr)) {
-                if (strchr(CINI_IN_QUOTE_CHARS, *str_ptr) != NULL) {
+                if (strchr(CINI_QUOTE_CHARS, *str_ptr) != NULL) {
                     quoteChar = *str_ptr;
                     quoteOpen = 1;
                 }
@@ -380,7 +386,7 @@ static void cini_in_add_value_array(CINI_IN_HANDLE* cini, CINI_IN_LIST* value_li
         for (; str_ptr < source->end; ++str_ptr) {
             if (cini_in_isspace(*str_ptr)) {
                 // Skip
-            } else if (*str_ptr == CINI_IN_VALUE_SEPARATOR) {
+            } else if (*str_ptr == CINI_ARRAY_SEPARATOR) {
                 if (quoteOpen) {
                     if (separator == NULL) {
                         separator = str_ptr;
@@ -479,12 +485,12 @@ static void cini_in_parse(CINI_IN_HANDLE* cini, FILE* file)
             line.begin = cini_in_skip_bom(line.begin);
         }
         line = cini_in_string_trim(&line);
-        if (strchr(CINI_IN_COMMENT_CHARS, *line.begin) != NULL) {
+        if (strchr(CINI_COMMENT_CHARS, *line.begin) != NULL) {
             continue;
         }
-        if (*line.begin == CINI_IN_SECTION_BRACKET_OPEN) {
+        if (*line.begin == CINI_SECTION_BRACKET_OPEN) {
             ++line.begin;
-            CINI_IN_STRING section_name = { line.begin, strchr(line.begin, CINI_IN_SECTION_BRACKET_CLOSE) };
+            CINI_IN_STRING section_name = { line.begin, strchr(line.begin, CINI_SECTION_BRACKET_CLOSE) };
             if (cini_in_string_len(&section_name) == 0) {
                 cini_in_error(cini);
                 continue;
@@ -497,7 +503,7 @@ static void cini_in_parse(CINI_IN_HANDLE* cini, FILE* file)
             }
         } else {
             if (cini->current_section != NULL && (cini->target_section_name == NULL || strcmp(cini->current_section->name, cini->target_section_name) == 0)) {
-                CINI_IN_STRING key_name = { line.begin, strchr(line.begin, CINI_IN_ASSIGNMENT) };
+                CINI_IN_STRING key_name = { line.begin, strchr(line.begin, CINI_ASSIGNMENT) };
                 CINI_IN_STRING value_str = { key_name.end + 1, line.end };
                 key_name = cini_in_string_trim(&key_name);
                 if (cini_in_string_len(&key_name) == 0) {
@@ -518,18 +524,12 @@ static void cini_in_parse(CINI_IN_HANDLE* cini, FILE* file)
     }
 }
 
-////////////////////////////////////////////////////////////////////////////////
-
-HCINI cini_create(const char* path)
+HCINI cini_in_create_handle(const char* path, const char* section)
 {
-    return cini_create_with_section(path, NULL);
-}
-
-HCINI cini_create_with_section(const char* path, const char* section)
-{
-    CINI_IN_HANDLE* cini = (CINI_IN_HANDLE*)malloc(sizeof(CINI_IN_HANDLE));
+    CINI_IN_LIST memory_list = {};
+    CINI_IN_HANDLE* cini = (CINI_IN_HANDLE*)cini_in_allocate(&memory_list, sizeof(CINI_IN_HANDLE));
     if (cini != NULL) {
-        memset(cini, 0, sizeof(CINI_IN_HANDLE));
+        cini->memory_list = memory_list;
         cini->target_section_name = section;
         FILE* file = cini_in_fopen(path, "r");
         if (file != NULL) {
@@ -542,18 +542,36 @@ HCINI cini_create_with_section(const char* path, const char* section)
     return (HCINI)cini;
 }
 
-void cini_free(HCINI hcini)
+void cini_in_free_handle(HCINI hcini)
 {
     CINI_IN_HANDLE* cini = (CINI_IN_HANDLE*)hcini;
     if (cini != NULL) {
-        CINI_IN_LIST_NODE* node = (CINI_IN_LIST_NODE*)cini->memory_list.front;
+        CINI_IN_LIST memory_list = cini->memory_list;
+        CINI_IN_LIST_NODE* node = (CINI_IN_LIST_NODE*)memory_list.front;
         while (node != NULL) {
             CINI_IN_LIST_NODE* next = node->next;
-            free(node);
+            memset(node, 0, sizeof(CINI_IN_MEMORY));
+            cini_in_free(node);
             node = next;
         }
-        free(cini);
     }
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+HCINI cini_create(const char* path)
+{
+    return cini_in_create_handle(path, NULL);
+}
+
+HCINI cini_create_with_section(const char* path, const char* section)
+{
+    return cini_in_create_handle(path, section);
+}
+
+void cini_free(HCINI hcini)
+{
+    cini_in_free_handle(hcini);
 }
 
 int cini_isgood(HCINI hcini)

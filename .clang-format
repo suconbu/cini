@@ -1,0 +1,3 @@
+BasedOnStyle: WebKit
+AlignConsecutiveMacros: true
+BreakBeforeTernaryOperators: false

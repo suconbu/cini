@@ -20,7 +20,7 @@ add_test(
 
 target_include_directories(${PROJECT_NAME}
     PRIVATE
-        ${PROJECT_SOURCE_DIR}/include
+        ${PROJECT_SOURCE_DIR}
         ${PROJECT_SOURCE_DIR}/test
 )
 

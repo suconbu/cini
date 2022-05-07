@@ -19,8 +19,12 @@ void test_c(const char* path)
         TEST(cini_geti(hcini, "", "key1", -999) == 100);
         TEST(strcmp(cini_gets(hcini, "", "key2", "ERROR"), "TEST") == 0);
         TEST(strcmp(cini_gets(hcini, "", "key 3", "ERROR"), "TEST") == 0);
+        TEST(strcmp(cini_gets(hcini, "", "key4", "ERROR"), "") == 0);
+        TEST(strcmp(cini_gets(hcini, "", "key5", "ERROR"), "") == 0);
+        TEST(strcmp(cini_gets(hcini, "", "k e\ty 6", "ERROR"), "TE  ST") == 0);
         TEST(cini_geti(hcini, "", "100", -999) == 99);
-        TEST(strcmp(cini_gets(hcini, "", "k e\ty 4", "ERROR"), "TE  ST") == 0);
+        TEST(cini_geti(hcini, "", "key7", -999) == 123);
+        TEST(strcmp(cini_gets(hcini, "", "key8", "ERROR"), "===") == 0);
         cini_free(hcini);
     }
     // int section
@@ -192,7 +196,7 @@ void test_c(const char* path)
     {
         HCINI hcini = cini_create(path);
         TEST(hcini != NULL);
-        TEST(cini_geterrorcount(hcini) == 4);
+        TEST(cini_geterrorcount(hcini) == 3);
         cini_free(hcini);
     }
     {

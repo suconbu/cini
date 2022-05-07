@@ -102,8 +102,8 @@ private:
 
 #define CINI_QUOTE_CHARS           "'\""
 #define CINI_COMMENT_CHARS         ";#"
+#define CINI_ASSIGNMENT_CHARS      "=:"
 #define CINI_ARRAY_SEPARATOR       ','
-#define CINI_ASSIGNMENT            '='
 #define CINI_SECTION_BRACKET_OPEN  '['
 #define CINI_SECTION_BRACKET_CLOSE ']'
 
@@ -498,7 +498,12 @@ static void cini_in_parse(CINI_IN_HANDLE* cini, FILE* file)
             }
         } else {
             if (cini->current_section != NULL && (cini->target_section_name == NULL || strcmp(cini->current_section->name, cini->target_section_name) == 0)) {
-                CINI_IN_STRING key_name = { line.begin, strchr(line.begin, CINI_ASSIGNMENT) };
+                CINI_IN_STRING key_name = { line.begin, line.begin };
+                for (; *key_name.end != 0; ++key_name.end) {
+                    if (strchr(CINI_ASSIGNMENT_CHARS, *key_name.end) != NULL) {
+                        break;
+                    }
+                }
                 CINI_IN_STRING value_str = { key_name.end + 1, line.end };
                 key_name = cini_in_string_trim(&key_name);
                 if (cini_in_string_len(&key_name) == 0) {

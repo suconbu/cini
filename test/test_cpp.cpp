@@ -18,8 +18,12 @@ void test_cpp(const char* path)
         TEST(cini.geti("", "key1", -999) == 100);
         TEST(strcmp(cini.gets("", "key2", "ERROR"), "TEST") == 0);
         TEST(strcmp(cini.gets("", "key 3", "ERROR"), "TEST") == 0);
+        TEST(strcmp(cini.gets("", "key4", "ERROR"), "") == 0);
+        TEST(strcmp(cini.gets("", "key5", "ERROR"), "") == 0);
+        TEST(strcmp(cini.gets("", "k e\ty 6", "ERROR"), "TE  ST") == 0);
         TEST(cini.geti("", "100", -999) == 99);
-        TEST(strcmp(cini.gets("", "k e\ty 4", "ERROR"), "TE  ST") == 0);
+        TEST(cini.geti("", "key7", -999) == 123);
+        TEST(strcmp(cini.gets("", "key8", "ERROR"), "===") == 0);
     }
     // int section
     {
@@ -173,7 +177,7 @@ void test_cpp(const char* path)
     }
     {
         Cini cini(path);
-        TEST(cini.geterrorcount() == 4);
+        TEST(cini.geterrorcount() == 3);
     }
     {
         Cini cini("alkjgbak4nubiato");

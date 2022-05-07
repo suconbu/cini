@@ -24,9 +24,6 @@ HCINI cini_create_with_section(const char* path, const char* section);
 // Release resources
 void cini_free(HCINI hcini);
 
-// If failed to load the ini file, the function returns non zero
-int cini_isgood(HCINI hcini);
-
 // Get the value of indicated section and key
 // The function returns default value if could not find the entry or the value type was mismatch
 int cini_geti(HCINI hcini, const char* section, const char* key, int idefault);
@@ -61,9 +58,6 @@ public:
     // If the 'section' is not null, the cini parse specific section only
     Cini(const char* path, const char* section = nullptr) { hcini_ = cini_create_with_section(path, section); }
     ~Cini() { cini_free(hcini_); }
-
-    // If failed to load the ini file, the function returns false
-    operator bool() const { return cini_isgood(hcini_) ? true : false; }
 
     // Get the value of indicated section and key
     // The function returns default value if could not find the entry or the value type was mismatch
@@ -165,10 +159,10 @@ typedef struct {
     char error_buffer[CINI_ERROR_BUFFER_SIZE];
     char line_buffer[CINI_LINE_BUFFER_SIZE];
     int line_no;
-    int good;
 } CINI_IN_HANDLE;
 
 static void* cini_in_allocate(CINI_IN_LIST* memory_list, size_t size);
+static void cini_in_error(CINI_IN_HANDLE* cini, const char* message);
 
 static FILE* cini_in_fopen(const char* filename, const char* mode)
 {
@@ -239,6 +233,8 @@ static CINI_IN_LIST_NODE* cini_in_list_push_back(CINI_IN_HANDLE* cini, CINI_IN_L
             list->back->next = node;
         }
         list->back = node;
+    } else {
+        cini_in_error(cini, "Failed to allocate memory");
     }
     return node;
 }
@@ -268,9 +264,9 @@ static CINI_IN_LIST_NODE* cini_in_list_find(const CINI_IN_LIST* list, int (*matc
     return found_node;
 }
 
-static void cini_in_error(CINI_IN_HANDLE* cini)
+static void cini_in_error(CINI_IN_HANDLE* cini, const char* message)
 {
-    int len = snprintf(cini->error_buffer, sizeof(cini->error_buffer), "at line:%d", cini->line_no);
+    int len = snprintf(cini->error_buffer, sizeof(cini->error_buffer), "%s (line:%d)", message, cini->line_no);
     if (0 < len) {
         size_t size = sizeof(CINI_IN_ERROR) + len + 1;
         CINI_IN_ERROR* error = (CINI_IN_ERROR*)cini_in_list_push_back(cini, &cini->error_list, size);
@@ -280,7 +276,6 @@ static void cini_in_error(CINI_IN_HANDLE* cini)
             error->message = s;
         }
     }
-    return;
 }
 
 static void* cini_in_allocate(CINI_IN_LIST* memory_list, size_t size)
@@ -333,7 +328,7 @@ static CINI_IN_VALUE* cini_in_add_value_single(CINI_IN_HANDLE* cini, CINI_IN_LIS
             // Integer
             has_numeric = 1;
         } else {
-            // Float
+            // Try parse as float
             numeric = strtod(str.begin, &endp);
             if (endp == str.end) {
                 has_numeric = 1;
@@ -492,7 +487,7 @@ static void cini_in_parse(CINI_IN_HANDLE* cini, FILE* file)
             ++line.begin;
             CINI_IN_STRING section_name = { line.begin, strchr(line.begin, CINI_SECTION_BRACKET_CLOSE) };
             if (cini_in_string_len(&section_name) == 0) {
-                cini_in_error(cini);
+                cini_in_error(cini, "Invalid section name");
                 continue;
             }
             CINI_IN_SECTION* existing_section = (CINI_IN_SECTION*)cini_in_list_find(&cini->section_list, cini_in_match_section, &section_name);
@@ -507,14 +502,13 @@ static void cini_in_parse(CINI_IN_HANDLE* cini, FILE* file)
                 CINI_IN_STRING value_str = { key_name.end + 1, line.end };
                 key_name = cini_in_string_trim(&key_name);
                 if (cini_in_string_len(&key_name) == 0) {
-                    cini_in_error(cini);
+                    cini_in_error(cini, "Invalid key name");
                     continue;
                 }
                 CINI_IN_ENTRY* entry = (CINI_IN_ENTRY*)cini_in_list_find(&cini->current_section->entry_list, cini_in_match_entry, &key_name);
                 if (entry == NULL) {
                     entry = cini_in_add_entry(cini, &cini->current_section->entry_list, &key_name);
                     if (entry == NULL) {
-                        cini_in_error(cini);
                         continue;
                     }
                     cini_in_add_value(cini, &entry->value_list, &value_str);
@@ -536,7 +530,8 @@ HCINI cini_in_create_handle(const char* path, const char* section)
             cini_in_parse(cini, file);
             fclose(file);
             file = NULL;
-            cini->good = 1;
+        } else {
+            cini_in_error(cini, "Cannot open file");
         }
     }
     return (HCINI)cini;
@@ -572,12 +567,6 @@ HCINI cini_create_with_section(const char* path, const char* section)
 void cini_free(HCINI hcini)
 {
     cini_in_free_handle(hcini);
-}
-
-int cini_isgood(HCINI hcini)
-{
-    CINI_IN_HANDLE* cini = (CINI_IN_HANDLE*)hcini;
-    return (cini != NULL && cini->good) ? 1 : 0;
 }
 
 int cini_geti(HCINI hcini, const char* section, const char* key, int idefault)

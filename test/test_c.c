@@ -192,13 +192,13 @@ void test_c(const char* path)
     {
         HCINI hcini = cini_create(path);
         TEST(hcini != NULL);
-        TEST(cini_isgood(hcini) != 0);
+        TEST(cini_geterrorcount(hcini) == 4);
         cini_free(hcini);
     }
     {
         HCINI hcini = cini_create("alkjgbak4nubiato");
         TEST(hcini != NULL);
-        TEST(cini_isgood(hcini) == 0);
+        TEST(cini_geterrorcount(hcini) == 1);
         cini_free(hcini);
     }
 

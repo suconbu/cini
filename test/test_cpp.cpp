@@ -173,11 +173,11 @@ void test_cpp(const char* path)
     }
     {
         Cini cini(path);
-        TEST(cini);
+        TEST(cini.geterrorcount() == 4);
     }
     {
         Cini cini("alkjgbak4nubiato");
-        TEST(!cini);
+        TEST(cini.geterrorcount() == 1);
     }
 
     TEST_PRINT(stdout, "\n");

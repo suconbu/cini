@@ -96,16 +96,29 @@ private:
 #include <stdlib.h>
 #include <string.h>
 
+#ifndef CINI_MEMORY_CHUNK_SIZE
 #define CINI_MEMORY_CHUNK_SIZE 2048
-#define CINI_LINE_BUFFER_SIZE  512
-#define CINI_ERROR_BUFFER_SIZE 128
+#endif
 
-#define CINI_QUOTE_CHARS           "'\""
-#define CINI_COMMENT_CHARS         ";#"
-#define CINI_ASSIGNMENT_CHARS      "=:"
-#define CINI_ARRAY_SEPARATOR       ','
-#define CINI_SECTION_BRACKET_OPEN  '['
-#define CINI_SECTION_BRACKET_CLOSE ']'
+#ifndef CINI_LINE_BUFFER_SIZE
+#define CINI_LINE_BUFFER_SIZE 512
+#endif
+
+#ifndef CINI_MALLOC
+#define CINI_MALLOC(size) malloc(size)
+#endif
+
+#ifndef CINI_FREE
+#define CINI_FREE(ptr) free(ptr)
+#endif
+
+#define CINI_IN_ERROR_BUFFER_SIZE     128
+#define CINI_IN_QUOTE_CHARS           "'\""
+#define CINI_IN_COMMENT_CHARS         ";#"
+#define CINI_IN_ASSIGNMENT_CHARS      "=:"
+#define CINI_IN_ARRAY_SEPARATOR       ','
+#define CINI_IN_SECTION_BRACKET_OPEN  '['
+#define CINI_IN_SECTION_BRACKET_CLOSE ']'
 
 typedef struct {
     const char* begin;
@@ -156,7 +169,7 @@ typedef struct {
     CINI_IN_LIST error_list;
     CINI_IN_LIST section_list;
     CINI_IN_SECTION* current_section;
-    char error_buffer[CINI_ERROR_BUFFER_SIZE];
+    char error_buffer[CINI_IN_ERROR_BUFFER_SIZE];
     char line_buffer[CINI_LINE_BUFFER_SIZE];
     int line_no;
 } CINI_IN_HANDLE;
@@ -173,16 +186,6 @@ static FILE* cini_in_fopen(const char* filename, const char* mode)
     file = fopen(filename, mode);
 #endif
     return file;
-}
-
-static void* cini_in_malloc(size_t size)
-{
-    return malloc(size);
-}
-
-static void cini_in_free(void* ptr)
-{
-    free(ptr);
 }
 
 static int cini_in_isspace(char c)
@@ -288,7 +291,7 @@ static void* cini_in_allocate(CINI_IN_LIST* memory_list, size_t size)
             remain = CINI_MEMORY_CHUNK_SIZE - (memory->ptr - memory->chunk);
         }
         if (remain < size) {
-            CINI_IN_LIST_NODE* new_node = (CINI_IN_LIST_NODE*)cini_in_malloc(sizeof(CINI_IN_MEMORY));
+            CINI_IN_LIST_NODE* new_node = (CINI_IN_LIST_NODE*)CINI_MALLOC(sizeof(CINI_IN_MEMORY));
             if (new_node != NULL) {
                 memset(new_node, 0, sizeof(CINI_IN_MEMORY));
                 if (memory_list->front == NULL) {
@@ -338,7 +341,7 @@ static CINI_IN_VALUE* cini_in_add_value_single(CINI_IN_HANDLE* cini, CINI_IN_LIS
 
     if (!has_numeric) {
         // Remove the quote mark of both ends
-        if (2 <= cini_in_string_len(&str) && strchr(CINI_QUOTE_CHARS, *str.begin) != NULL && *str.begin == *(str.end - 1)) {
+        if (2 <= cini_in_string_len(&str) && strchr(CINI_IN_QUOTE_CHARS, *str.begin) != NULL && *str.begin == *(str.end - 1)) {
             str.begin += 1;
             str.end -= 1;
         }
@@ -369,7 +372,7 @@ static void cini_in_add_value_array(CINI_IN_HANDLE* cini, CINI_IN_LIST* value_li
         CINI_IN_STRING value_str = { str_ptr, source->end };
         for (; str_ptr < source->end; ++str_ptr) {
             if (!cini_in_isspace(*str_ptr)) {
-                if (strchr(CINI_QUOTE_CHARS, *str_ptr) != NULL) {
+                if (strchr(CINI_IN_QUOTE_CHARS, *str_ptr) != NULL) {
                     quoteChar = *str_ptr;
                     quoteOpen = 1;
                 }
@@ -381,7 +384,7 @@ static void cini_in_add_value_array(CINI_IN_HANDLE* cini, CINI_IN_LIST* value_li
         for (; str_ptr < source->end; ++str_ptr) {
             if (cini_in_isspace(*str_ptr)) {
                 // Skip
-            } else if (*str_ptr == CINI_ARRAY_SEPARATOR) {
+            } else if (*str_ptr == CINI_IN_ARRAY_SEPARATOR) {
                 if (quoteOpen) {
                     if (separator == NULL) {
                         separator = str_ptr;
@@ -480,12 +483,12 @@ static void cini_in_parse(CINI_IN_HANDLE* cini, FILE* file)
             line.begin = cini_in_skip_bom(line.begin);
         }
         line = cini_in_string_trim(&line);
-        if (strchr(CINI_COMMENT_CHARS, *line.begin) != NULL) {
+        if (strchr(CINI_IN_COMMENT_CHARS, *line.begin) != NULL) {
             continue;
         }
-        if (*line.begin == CINI_SECTION_BRACKET_OPEN) {
+        if (*line.begin == CINI_IN_SECTION_BRACKET_OPEN) {
             ++line.begin;
-            CINI_IN_STRING section_name = { line.begin, strchr(line.begin, CINI_SECTION_BRACKET_CLOSE) };
+            CINI_IN_STRING section_name = { line.begin, strchr(line.begin, CINI_IN_SECTION_BRACKET_CLOSE) };
             if (cini_in_string_len(&section_name) == 0) {
                 cini_in_error(cini, "Invalid section name");
                 continue;
@@ -500,7 +503,7 @@ static void cini_in_parse(CINI_IN_HANDLE* cini, FILE* file)
             if (cini->current_section != NULL && (cini->target_section_name == NULL || strcmp(cini->current_section->name, cini->target_section_name) == 0)) {
                 CINI_IN_STRING key_name = { line.begin, line.begin };
                 for (; *key_name.end != 0; ++key_name.end) {
-                    if (strchr(CINI_ASSIGNMENT_CHARS, *key_name.end) != NULL) {
+                    if (strchr(CINI_IN_ASSIGNMENT_CHARS, *key_name.end) != NULL) {
                         break;
                     }
                 }
@@ -551,7 +554,7 @@ void cini_in_free_handle(HCINI hcini)
         while (node != NULL) {
             CINI_IN_LIST_NODE* next = node->next;
             memset(node, 0, sizeof(CINI_IN_MEMORY));
-            cini_in_free(node);
+            CINI_FREE(node);
             node = next;
         }
     }

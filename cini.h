@@ -316,31 +316,40 @@ static void* cini_in_allocate(CINI_IN_LIST* memory_list, size_t size)
 static CINI_IN_VALUE* cini_in_add_value_single(CINI_IN_HANDLE* cini, CINI_IN_LIST* value_list, CINI_IN_STRING* source)
 {
     CINI_IN_STRING str = cini_in_string_trim(source);
-    int has_numeric = 0;
-    double numeric = 0.0;
-    if (*str.begin != 0 && strchr("+-#0123456789.", *str.begin) != NULL) {
+    int negative = 0;
+    double numeric = NAN;
+    if (*str.begin == '+' || *str.begin == '-') {
+        negative = (*str.begin == '-') ? 1 : 0;
+        ++str.begin;
+    }
+    if (str.begin != str.end) {
         char* endp = NULL;
-        const char* pos = strchr(str.begin, '#');
-        if (pos != NULL) {
-            numeric = strtol(pos + 1, &endp, 16);
+        double n = NAN;
+        if (*str.begin == '#') {
+            if ((str.begin + 1) != str.end) {
+                n = (double)strtoll(str.begin + 1, &endp, 16);
+            }
+        } else if (*str.begin == '0' && (*(str.begin + 1) == 'X' || *(str.begin + 1) == 'x')) {
+            if ((str.begin + 2) != str.end) {
+                n = (double)strtoll(str.begin + 2, &endp, 16);
+            }
         } else {
-            numeric = strtol(str.begin, &endp, 0);
+            n = strtod(str.begin, &endp);
         }
-
         if (endp == str.end) {
-            // Integer
-            has_numeric = 1;
-        } else {
-            // Try parse as float
-            numeric = strtod(str.begin, &endp);
-            if (endp == str.end) {
-                has_numeric = 1;
+            if (errno != ERANGE) {
+                numeric = n;
+            } else {
+                cini_in_error(cini, "Out of range");
             }
         }
     }
 
-    if (!has_numeric) {
-        // Remove the quote mark of both ends
+    if (!isnan(numeric)) {
+        // Numeric:
+        numeric = negative ? -numeric : numeric;
+    } else {
+        // String: Remove the quote mark of both ends
         if (2 <= cini_in_string_len(&str) && strchr(CINI_IN_QUOTE_CHARS, *str.begin) != NULL && *str.begin == *(str.end - 1)) {
             str.begin += 1;
             str.end -= 1;
@@ -354,7 +363,7 @@ static CINI_IN_VALUE* cini_in_add_value_single(CINI_IN_HANDLE* cini, CINI_IN_LIS
         char* s = (char*)(value + 1);
         memcpy(s, str.begin, len);
         value->s = s;
-        value->f = has_numeric ? numeric : NAN;
+        value->f = numeric;
     }
 
     return value;

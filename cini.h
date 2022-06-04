@@ -91,7 +91,10 @@ private:
 
 #include <assert.h>
 #include <ctype.h>
+#include <errno.h>
+#include <float.h>
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -316,31 +319,33 @@ static void* cini_in_allocate(CINI_IN_LIST* memory_list, size_t size)
 static CINI_IN_VALUE* cini_in_add_value_single(CINI_IN_HANDLE* cini, CINI_IN_LIST* value_list, CINI_IN_STRING* source)
 {
     CINI_IN_STRING str = cini_in_string_trim(source);
+    const char* str_ptr = str.begin;
     int negative = 0;
     double numeric = NAN;
-    if (*str.begin == '+' || *str.begin == '-') {
-        negative = (*str.begin == '-') ? 1 : 0;
-        ++str.begin;
+    if (*str_ptr == '+' || *str_ptr == '-') {
+        negative = (*str_ptr == '-') ? 1 : 0;
+        ++str_ptr;
     }
-    if (str.begin != str.end) {
+    if (str_ptr != str.end) {
         char* endp = NULL;
         double n = NAN;
-        if (*str.begin == '#') {
-            if ((str.begin + 1) != str.end) {
-                n = (double)strtoll(str.begin + 1, &endp, 16);
+        errno = 0;
+        if (*str_ptr == '#') {
+            if ((str_ptr + 1) != str.end) {
+                n = (double)strtoll(str_ptr + 1, &endp, 16);
             }
-        } else if (*str.begin == '0' && (*(str.begin + 1) == 'X' || *(str.begin + 1) == 'x')) {
-            if ((str.begin + 2) != str.end) {
-                n = (double)strtoll(str.begin + 2, &endp, 16);
+        } else if (*str_ptr == '0' && (*(str_ptr + 1) == 'X' || *(str_ptr + 1) == 'x')) {
+            if ((str_ptr + 2) != str.end) {
+                n = (double)strtoll(str_ptr + 2, &endp, 16);
             }
         } else {
-            n = strtod(str.begin, &endp);
+            n = strtod(str_ptr, &endp);
         }
         if (endp == str.end) {
-            if (errno != ERANGE) {
+            if (errno != ERANGE && -FLT_MAX <= n && n <= FLT_MAX) {
                 numeric = n;
             } else {
-                cini_in_error(cini, "Out of range");
+                // Out of range
             }
         }
     }
@@ -382,10 +387,9 @@ static void cini_in_add_value_array(CINI_IN_HANDLE* cini, CINI_IN_LIST* value_li
         for (; str_ptr < source->end; ++str_ptr) {
             if (!cini_in_isspace(*str_ptr)) {
                 if (strchr(CINI_IN_QUOTE_CHARS, *str_ptr) != NULL) {
-                    quoteChar = *str_ptr;
+                    quoteChar = *str_ptr++;
                     quoteOpen = 1;
                 }
-                ++str_ptr;
                 break;
             }
         }
@@ -569,6 +573,11 @@ void cini_in_free_handle(HCINI hcini)
     }
 }
 
+int cini_in_check_int(double f, int idefault)
+{
+    return (INT32_MIN <= f && f <= INT32_MAX) ? (int)f : idefault;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 
 HCINI cini_create(const char* path)
@@ -589,7 +598,7 @@ void cini_free(HCINI hcini)
 int cini_geti(HCINI hcini, const char* section, const char* key, int idefault)
 {
     const CINI_IN_VALUE* value = cini_in_get_value((CINI_IN_HANDLE*)hcini, section, key, 0);
-    return (value && !isnan(value->f)) ? (int)value->f : idefault;
+    return (value && !isnan(value->f)) ? cini_in_check_int(value->f, idefault) : idefault;
 }
 
 float cini_getf(HCINI hcini, const char* section, const char* key, float fdefault)
@@ -607,7 +616,7 @@ const char* cini_gets(HCINI hcini, const char* section, const char* key, const c
 int cini_getai(HCINI hcini, const char* section, const char* key, int index_, int idefault)
 {
     const CINI_IN_VALUE* value = (0 <= index_) ? cini_in_get_value((CINI_IN_HANDLE*)hcini, section, key, index_ + 1) : NULL;
-    return (value && !isnan(value->f)) ? (int)value->f : idefault;
+    return (value && !isnan(value->f)) ? cini_in_check_int(value->f, idefault) : idefault;
 }
 float cini_getaf(HCINI hcini, const char* section, const char* key, int index_, float fdefault)
 {
